@@ -1,6 +1,6 @@
-# [DataLoudLabs](https://github.com/pjsousa) - [Sandbox d3js boilerplate](https://github.com/pjsousa/sandbox_d3js)
+# [Sandbox d3js boilerplate](https://github.com/pjsousa/sandbox_d3js)
 
-Boiler plate front end dev sandbox. Based on [start-bootstrap](https://startbootstrap.com)
+
 
 
 ## Getting Started
