@@ -1,0 +1,28 @@
+{
+  "name": "sandbox_d3js",
+  "title": "Sandbox d3js boilerplate",
+  "version": "1.0.0",
+  "homepage": "https://github.com/pjsousa/sandbox_d3js",
+  "author": "DataLoudLabs",
+  "license": {
+    "type": "MIT",
+    "url": "https://github.com/pjsousa/frontend-sandbox/LICENSE"
+  },
+  "scripts": {
+    "start": "gulp dev",
+    "test": "testem -f testem-client.yml -p 7357"
+  },
+  "devDependencies": {
+    "browser-sync": "^2.13.0",
+    "gulp": "^3.9.1",
+    "gulp-clean-css": "^2.0.10",
+    "gulp-header": "^1.8.7",
+    "gulp-less": "^3.1.0",
+    "gulp-rename": "^1.2.2",
+    "gulp-uglify": "^1.5.4"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/pjsousa/sandbox_d3js.git"
+  }
+}

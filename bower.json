@@ -1,0 +1,38 @@
+{
+  "name": "sandbox_d3js",
+  "homepage": "https://github.com/pjsousa/sandbox_d3js",
+  "version": "3.3.7+1",
+  "authors": [
+    "DataLoudLabs"
+  ],
+  "description": "Boiler plate project with browsersync, gulp, knockout and d3.js set up.",
+  "keywords": [
+    "bootstrap",
+    "theme"
+  ],
+  "license": "MIT",
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests",
+    "pages",
+    "index.html",
+    "/js"
+  ],
+  "main": [
+    "dist/js/script.js"
+  ],
+  "dependencies": {
+    "bootstrap": "~3.3.7",
+    "font-awesome": "~4.6.3",
+    "bootstrap-social": "~4.8.0",
+    "d3": "^4.11.0",
+    "handsontable": "^5.0.0",
+    "knockout": "knockoutjs#^3.4.2"
+  },
+  "resolutions": {
+    "font-awesome": "~4.6.3"
+  }
+}
