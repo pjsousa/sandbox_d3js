@@ -1,4 +1,6 @@
 <!DOCTYPE html>
+<html>
+<head>
 <meta charset="utf-8">
 <style>
 
@@ -15,6 +17,8 @@ path {
 }
 
 </style>
+</head>
+<body>
 <svg width="960" height="500"></svg>
 <script src="//d3js.org/d3.v4.min.js"></script>
 <script>
@@ -22,9 +26,9 @@ path {
 var svg = d3.select("svg"),
     width = +svg.attr("width"),
     height = +svg.attr("height"),
-    radius = 32;
+    radius = 4;
 
-var circles = d3.range(20).map(function() {
+var circles = d3.range(1000).map(function() {
   return {
     x: Math.round(Math.random() * (width - radius * 2) + radius),
     y: Math.round(Math.random() * (height - radius * 2) + radius)
@@ -82,3 +86,5 @@ function renderCell(d) {
 }
 
 </script>
+</body>
+</html>

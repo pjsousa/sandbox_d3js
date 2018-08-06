@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+
+path {
+  pointer-events: all;
+  fill: none;
+  stroke: #666;
+  stroke-opacity: 0.2;
+}
+
+.active circle {
+  stroke: #000;
+  stroke-width: 2px;
+}
+
+</style>
+</head>
+<body>
+<svg width="960" height="500"></svg>
+<script src="//d3js.org/d3.v5.min.js"></script>
+<script>
+
+var svg = d3.select("svg"),
+    width = +svg.attr("width"),
+    height = +svg.attr("height"),
+    radius = 15
+    number_datapoints = 100;
+
+  var drag_0 = null;
+  var drag_1 = null;
+  var drag_data = null;
+  var zoom_transform = null;
+
+
+svg.call(d3.zoom()
+    .scaleExtent([1, 8])
+    .on("zoom", zoomed));
+
+
+
+
+var circles = d3.range(number_datapoints).map(function() {
+  return {
+    x: Math.round(Math.random() * (width - radius * 2) + radius),
+    y: Math.round(Math.random() * (height - radius * 2) + radius)
+  };
+});
+
+var color = d3.scaleOrdinal()
+    .range(d3.schemeCategory10);
+
+var voronoi = processVoronoi(circles)
+
+var visuals = svg.append("g")
+  .attr("class", "visuals")
+
+var plot_area = visuals.append("g")
+  .attr("class", "plot-area")
+
+var voronoi_area = visuals.append("g")
+  .attr("class", "voronoi-area")
+
+var events_area = visuals.append("g")
+  .attr("class", "events-area")
+  .on("mousemove", mousemove)
+  .call(d3.drag()
+        .on("start", dragstarted)
+        .on("drag", dragged)
+        .on("end", dragended));
+
+var mouse_text = createDebugArea(0, 0, "start", "before-edge", "Mouse: x,x")
+var drag_text = createDebugArea(0, 20, "start", "before-edge", "Dragging: false")
+var drag_text2 = createDebugArea(0, 40, "start", "before-edge", "Delta: x,x")
+var zoom_text = createDebugArea(0, 60, "start", "before-edge", "Transform: x,x")
+var points_text = createDebugArea(0, height - (5 * 20), "start", "ideographic", "")
+
+events_area.append("rect")
+  .attr("x", 0)
+  .attr("y", 0)
+  .attr("width", width)
+  .attr("height", height)
+  .attr("fill", "rgba(255,127,0,0.1)")
+
+
+
+var datums = plot_area.selectAll("circle")
+  .data(circles)
+  .enter().append("circle")
+    .attr("id", function(d,i){ return "datum-" + i; })
+    .attr("cx", function(d) { return d.x; })
+    .attr("cy", function(d) { return d.y; })
+    .attr("r", radius)
+    .attr("stroke", "none")
+    .attr("stroke-width", "3px")
+    .style("fill", function(d, i) { return d3.interpolateGreens(Math.max(0.2,i/number_datapoints)); });
+
+
+var polygon = voronoi_area
+  .selectAll("path")
+  .data(voronoi.polygons(circles))
+  .enter().append("path")
+    .call(redrawPolygon);
+
+
+debugCoords(points_text, circles);
+
+
+function mousemove(){
+  var mouse = d3.mouse(events_area.node());
+  debug(mouse_text, "Mouse: " + JSON.stringify(mouse));
+}
+
+function dragstarted(d) {
+  drag_0 = [d3.event.x, d3.event.y];
+  drag_1 = [0,0]
+  drag_data = voronoi.find(drag_0[0], drag_0[1])
+  debug(mouse_text, "Mouse: " + JSON.stringify(drag_0));
+  debug(drag_text, "Dragging: " + JSON.stringify(drag_0)
+                  + "  " + JSON.stringify([drag_data.index, drag_data.data]));
+  debug(drag_text2, "Delta: " + JSON.stringify(drag_1));
+
+  d3.select("#datum-" + drag_data.index)
+    .attr("stroke", "black")
+    .raise();
+}
+
+function dragged(d) {
+  var coords = [d3.event.x, d3.event.y];
+  drag_1 = [coords[0]-drag_0[0], coords[1]-drag_0[1]]
+  debug(mouse_text, "Mouse: " + JSON.stringify(coords));
+  debug(drag_text2, "Delta: " + JSON.stringify(drag_1));
+
+  d3.select("#datum-" + drag_data.index)
+    .attr("transform", "translate(" + drag_1[0]+ ", "+ drag_1[1] +")")
+    .attr("stroke", "tomato");
+}
+
+function dragended(d, i) {
+  var circle_data = drag_data.data;
+  circle_data.x += drag_1[0];
+  circle_data.y += drag_1[1];
+  
+  d3.select("#datum-" + drag_data.index)
+    .attr("transform", null)
+    .attr("cx", circle_data.x)
+    .attr("cy", circle_data.y)
+    .attr("stroke", "none");
+
+  //update voronoi diagram
+  voronoi = processVoronoi(circles)
+  voronoi_area.selectAll("path")
+    .remove()
+  voronoi_area.selectAll("path")
+    .data(voronoi.polygons(circles))
+    .enter().append("path")
+      .call(redrawPolygon);
+
+  debugCoords(points_text, circles);
+}
+
+function redrawPolygon(polygon) {
+  polygon
+      .attr("d", function(d) { return d ? "M" + d.join("L") + "Z" : null; });
+}
+
+function processVoronoi(data){
+  var voronoi = d3.voronoi()
+      .x(function(d) { return d.x; })
+      .y(function(d) { return d.y; })
+      .extent([[-1, -1], [width + 1, height + 1]]);
+
+  voronoi = voronoi(data);
+
+  return voronoi
+}
+
+function createDebugArea(x,y,anchor,baseline, caption){
+  var text_area = svg.append("text")
+    .attr("class", "text-area")
+    .attr("x", x).attr("y", y)
+    .attr("text-anchor", anchor)
+    .attr("alignment-baseline", baseline)
+    .style("pointer-events", "none")
+    .html(caption)
+
+  return text_area;
+}
+
+function zoomed() {
+  zoom_transform = d3.event.transform
+  zoom_transform.x = d3.min([zoom_transform.x, 0])
+  zoom_transform.y = d3.min([zoom_transform.y, 0])
+
+  zoom_transform.x = d3.max([zoom_transform.x, ((zoom_transform.k - 1) * width) * -1]);
+  zoom_transform.y = d3.max([zoom_transform.y, ((zoom_transform.k - 1) * height) * -1]);
+
+  debug(zoom_text, JSON.stringify(zoom_transform))
+  visuals.attr("transform", zoom_transform);
+}
+
+function debug(text_area, text){
+  text_area.html(text);
+}
+
+function debugCoords(text_area, coords){
+  text_area.selectAll("tspan")
+    .remove()
+
+  text_area.selectAll("tspan")
+    .data(coords)
+    .enter().append("tspan")
+      .attr("x", 0)
+      .attr("dy", "20px")
+      .html(function(d, i){ return JSON.stringify(d) })
+}
+
+</script>
+</body>
+</html>
