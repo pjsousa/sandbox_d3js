@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Quadtree</title>
+  <style>
+
+  .point {
+    fill: #999;
+    stroke: #fff;
+  }
+
+  .point.scanned {
+    fill: orange;
+    fill-opacity: 1;
+    stroke: brown;
+  }
+
+  .point.selected {
+    fill: red;
+    fill-opacity: 1;
+  }
+
+  .node {
+    fill: none;
+    stroke: #ccc;
+    shape-rendering: crispEdges;
+  }
+
+  .brush .extent {
+    stroke: #fff;
+    fill-opacity: .125;
+    shape-rendering: crispEdges;
+  }
+
+</style>
+</head>
+<body>
+  <p>An svg with some circles</p>
+  <svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="10" cy="10" r="10" fill="red"/>
+    <circle cx="100" cy="100" r="10" fill="limegreen"/>
+
+    <circle cx="150" cy="50" r="10" fill="blue" clip-path=""/>
+    <circle cx="150" cy="100" r="10" fill="pink"/>
+
+  </svg>
+  <p>Same svg with each circle applying a clippath</p>
+  <svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <clipPath id="mask1"> 
+        <rect x="0" y="0" width="100" height="100"/>
+      </clipPath>
+    </defs>
+    
+    <circle cx="10" cy="10" r="10" fill="red" clip-path="url(#mask1)"/>
+    <circle cx="100" cy="100" r="10" fill="limegreen" clip-path="url(#mask1)"/>
+
+    <circle cx="150" cy="50" r="10" fill="blue" clip-path=""/>
+    <circle cx="150" cy="100" r="10" fill="pink" clip-path="url(#mask1)"/>
+
+  </svg>
+  <p>Same Svg with circles inside a group tag that in turn applies a clippath (same result as before)</p>
+  <svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <clipPath id="mask2"> 
+        <rect x="0" y="0" width="100" height="100"/>
+      </clipPath>
+    </defs>
+    
+    <g clip-path="url(#mask2)">
+      <circle cx="10" cy="10" r="10" fill="red"/>
+      <circle cx="100" cy="100" r="10" fill="limegreen"/>
+
+      <circle cx="150" cy="50" r="10" fill="blue" clip-path=""/>
+      <circle cx="150" cy="100" r="10" fill="pink"/>
+    </g>
+  </svg>
+  <p>Same svg with a g tag applying a clippath. But the clipPath has multiple shapes</p>
+  <svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <clipPath id="mask3"> 
+        <rect x="0" y="0" width="100" height="100"/>
+        <rect x="100" y="100" width="10" height="10"/>
+      </clipPath>
+    </defs>
+    
+    <g clip-path="url(#mask3)">
+      <circle cx="10" cy="10" r="10" fill="red"/>
+      <circle cx="100" cy="100" r="10" fill="limegreen"/>
+
+      <circle cx="150" cy="50" r="10" fill="blue" clip-path=""/>
+      <circle cx="150" cy="100" r="10" fill="pink"/>
+    </g>
+  </svg>
+</body>
+</html>

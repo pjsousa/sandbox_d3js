@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Quadtree</title>
+  <style>
+
+  .point {
+    fill: #999;
+    stroke: #fff;
+  }
+
+  .point.scanned {
+    fill: orange;
+    fill-opacity: 1;
+    stroke: brown;
+  }
+
+  .point.selected {
+    fill: red;
+    fill-opacity: 1;
+  }
+
+  .node {
+    fill: none;
+    stroke: #ccc;
+    shape-rendering: crispEdges;
+  }
+
+  .brush .extent {
+    stroke: #fff;
+    fill-opacity: .125;
+    shape-rendering: crispEdges;
+  }
+
+</style>
+</head>
+<body>
+  <p>An svg with some circles</p>
+  <svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+    <g>
+      <circle cx="10" cy="10" r="10" fill="red"/>
+      <circle cx="100" cy="100" r="10" fill="limegreen"/>
+
+      <circle cx="150" cy="50" r="10" fill="blue" clip-path=""/>
+      <circle cx="150" cy="100" r="10" fill="pink"/>
+    </g>
+  </svg>
+
+  <svg width="200" height="200" xmlns="http://www.w3.org/2000/svg">
+    <filter id="peachy">
+      <feColorMatrix
+        type="matrix"
+        values="1   0   0   0   0
+                0  .5   0   0   0
+                0   0   0  .5   0
+                0   0   0   1   0 "/>
+    </filter>
+
+
+    <g filter="url(#peachy)">
+      <circle cx="10" cy="10" r="10" fill="red"/>
+      <circle cx="100" cy="100" r="10" fill="limegreen"/>
+
+      <circle cx="150" cy="50" r="10" fill="blue" clip-path=""/>
+      <circle cx="150" cy="100" r="10" fill="pink"/>
+    </g>
+  </svg>
+</body>
+</html>

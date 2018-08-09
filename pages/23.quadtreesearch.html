@@ -25,7 +25,7 @@
 </style>
 </head>
 <body>
-  <svg width="960" height="500"></svg>
+  <svg width="500" height="500"></svg>
   <script src="https://d3js.org/d3.v4.min.js"></script>
   <script>
 
@@ -35,7 +35,7 @@
     selected;
 
     var random = Math.random,
-    data = d3.range(2500).map(function() { return [random() * width, random() * height]; });
+    data = d3.range(10).map(function() { return [random() * width, random() * height]; });
 
     var quadtree = d3.quadtree()
     .extent([[-1, -1], [width + 1, height + 1]])

@@ -39,12 +39,12 @@
   <script src="http://d3js.org/d3.v3.min.js"></script>
   <script>
 
-    var width = 960,
+    var width = 500,
     height = 500,
     min_w = 5, max_w = 50, // half of maximum element width
     min_h = 5, max_h = 35; // half of maximum element height
 
-    var data = d3.range(1000).map(function() {
+    var data = d3.range(10).map(function() {
       return [Math.random() * width, Math.random() * width
       ,min_w+Math.random()*(max_w-min_w)
       ,min_h+Math.random() * (max_h-min_h)];
