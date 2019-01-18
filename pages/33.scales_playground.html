@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+
+body {
+	font: 10px sans-serif;
+}
+
+.axis path,
+.axis line {
+	fill: none;
+	stroke: #000;
+	shape-rendering: crispEdges;
+}
+
+.dot {
+	stroke: #000;
+}
+
+</style>
+</head>
+<body>
+<script src="//d3js.org/d3.v4.min.js"></script>
+<script>
+	var WIDTH = 800;
+	var HEIGHT = 600;
+
+	var svg = d3.select("body").append("svg")
+		.attr("width", WIDTH)
+		.attr("height", HEIGHT)
+
+	var controlsArea = svg.append("g")
+		.attr("class", "controls");
+
+	
+
+	var debug_0 = createDebugArea(0, 60, "start", "before-edge", "Brush: x,x")
+	var debug_1 = createDebugArea(0, 90, "start", "before-edge", "Range: false")
+	var debug_2 = createDebugArea(0, 120, "start", "before-edge", "Data: x,x")
+	var debug_3 = createDebugArea(0, 150, "start", "before-edge", "Screen Extent: x,x")
+	var debug_4 = createDebugArea(0, 180, "start", "before-edge", "Data Extent: x,x")
+	var debug_5 = createDebugArea(0, 210, "start", "before-edge", "Scale: x,x")
+	var debug_6 = createDebugArea(0, 240, "start", "before-edge", "Normalized Range: x,x")
+
+	var x = d3.scaleBand()
+		.domain(["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"])
+		.range([0,120]);
+
+	debug(debug_0, x.domain())
+	debug(debug_1, x.inverse(100))
+
+
+	function debug(text_area, text){
+	  text_area.html(text);
+	}
+
+	function createDebugArea(x,y,anchor,baseline, caption){
+	  var text_area = svg.append("text")
+	    .attr("class", "text-area")
+	    .attr("x", x).attr("y", y)
+	    .attr("text-anchor", anchor)
+	    .style("font-size", 20)
+	    .attr("alignment-baseline", baseline)
+	    .style("pointer-events", "none")
+	    .html(caption)
+
+	  return text_area;
+	}
+
+	function zip(arrays) {
+	    return arrays[0].map(function(_,i){
+	        return arrays.map(function(array){return array[i]})
+	    });
+	}
+
+</script>
+</body>
+</html>

@@ -21,7 +21,7 @@ var svg = d3.select("svg"),
     height = +svg.attr("height"),
     radius = 32;
 
-var circles = d3.range(4).map(function() {
+var circles = d3.range(100).map(function() {
   return {
     x: Math.round(Math.random() * (width - radius * 2) + radius),
     y: Math.round(Math.random() * (height - radius * 2) + radius)

@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+
+body {
+	font: 10px sans-serif;
+}
+
+.axis path,
+.axis line {
+	fill: none;
+	stroke: #000;
+	shape-rendering: crispEdges;
+}
+
+.dot {
+	stroke: #000;
+}
+
+</style>
+</head>
+<body>
+<script src="//d3js.org/d3.v4.min.js"></script>
+<script>
+	var WIDTH = 800;
+	var HEIGHT = 600;
+
+	var scales = {
+			"width": d3.scaleLinear().range([0, WIDTH-15]).domain([-100, 100]),
+			"height": d3.scaleLinear().range([0, HEIGHT-15]).domain([-300, 300]),
+	}
+
+	var axis = {
+		"width": d3.axisBottom(scales["width"]),
+		"height": d3.axisLeft(scales["height"])
+	}
+
+	var brushes = {
+		"main": d3.brush()
+	}
+
+	var brushesDefaultExtent = {
+		"width": 25,
+	}
+
+	var brushesMinExtent = {
+		"width": 25,
+	}
+
+	var brushesForceRecenter = {
+		"width": true,
+	}
+
+	var svg = d3.select("body").append("svg")
+		.attr("width", WIDTH)
+		.attr("height", HEIGHT)
+
+	var controlsArea = svg.append("g")
+		.attr("class", "controls");
+
+	initControls();
+
+	var state_text = createDebugArea(0, 60, "start", "before-edge", "Brush: x,x")
+	var screenrange_text = createDebugArea(0, 90, "start", "before-edge", "Range: false")
+	var datarange_text = createDebugArea(0, 120, "start", "before-edge", "Data: x,x")
+	var screenextent_text = createDebugArea(0, 150, "start", "before-edge", "Screen Extent: x,x")
+	var dataextent_text = createDebugArea(0, 180, "start", "before-edge", "Data Extent: x,x")
+	var scale_text = createDebugArea(0, 210, "start", "before-edge", "Scale: x,x")
+	var normalrange_text = createDebugArea(0, 240, "start", "before-edge", "Normalized Range: x,x")
+
+	function initControls(){
+		controlsArea.append("g").attr("class", "control-axis control-axis-width")
+		    .attr("transform", "translate(0,0)")
+		    .call(axis["width"])
+		    	.append("text")
+		    		.attr("x", scales["width"].range()[1]).attr("y", -6)
+		    		.style("text-anchor", "end").style("fill", "black")
+		    		.text("width");
+
+		controlsArea.append("g").attr("class", "control-axis control-axis-height")
+		    .attr("transform", "translate("+scales["width"].range()[1]+",0)")
+		    .call(axis["height"])
+		    	.append("text")
+		    		.attr("x", -6).attr("y", 10)
+		    		.style("text-anchor", "end").style("fill", "black")
+		    		.text("height");
+
+  	controlsArea.select("g.control-axis.control-axis-width")
+  		.call(brushes["main"]
+  			.extent([[scales["width"].range()[0], scales["height"].range()[0]],[scales["width"].range()[1], scales["height"].range()[1]]])
+  			.on("start", brushStarted.bind(null, "width"))
+  			.on("brush", brushed.bind(null, "width"))
+  			.on("end", brushDone.bind(null, "width")));
+
+  	controlsArea.append("rect")
+  		.attr("class", "random-width")
+  		.attr("x", scales["width"].range()[1]-15)
+  		.attr("y", 60)
+  		.attr("width", 30)
+  		.attr("height", 30)
+  		.style("fill", "rgb(0,127,255)")
+  		.on("mousedown touchstart", function(){
+  			var brush = controlsArea.select("g.control-axis.control-axis-width");
+  			var cx = Math.random();
+  			var cy = Math.random();
+  			var dx = Math.random() * 0.5;
+  			var dy = Math.random() * 0.5;
+
+  			cx = (scales["width"].range()[1] - scales["width"].range()[0]) * cx;
+  			cy = (scales["height"].range()[1] - scales["height"].range()[0]) * cy;
+				dx = (scales["width"].range()[1] - scales["width"].range()[0]) * dx;
+				dy = (scales["height"].range()[1] - scales["height"].range()[0]) * dy;
+				
+				var x0 = Math.round(cx - dx / 2);
+				var x1 = Math.round(cx + dx / 2);
+				var y0 = Math.round(cy - dy / 2);
+				var y1 = Math.round(cy + dy / 2);
+
+				point = [[x0, y0], [x1,y1]]
+				point[0][0] = Math.max(point[0][0], scales["width"].range()[0])
+				point[1][0] = Math.min(point[1][0], scales["width"].range()[1])
+				point[0][1] = Math.max(point[0][1], scales["height"].range()[0])
+				point[1][1] = Math.min(point[1][1], scales["height"].range()[1])
+
+				brush.call(brushes["main"].move, point);
+
+  		})
+
+	};
+
+	function brushStarted(varKey){
+		var brush = controlsArea.select("g.control-axis.control-axis-"+varKey);
+		
+		var selExtent = d3.event.selection;
+		
+		debug(state_text, "Brush: [START]");
+		debug(screenrange_text, "Range: " + JSON.stringify(selExtent))
+		debug(datarange_text, "Data: " + JSON.stringify(selExtent.map(scales[varKey].invert).map(function(d){ return Math.round(d*100) / 100;})))
+		debug(screenextent_text, "Screen Extent: " + JSON.stringify(selExtent[1] - selExtent[0]))
+		debug(dataextent_text, "Data Extent: " + JSON.stringify(selExtent.map(scales[varKey].invert)[1] - selExtent.map(scales[varKey].invert)[0]))
+		debug(scale_text, "Scale: " + JSON.stringify(((selExtent[1] - selExtent[0]) / (scales[varKey].range()[1] - scales[varKey].range()[0]))))
+		debug(normalrange_text, "Normalized Range: " + JSON.stringify( selExtent.map(function(e){ return Math.round((e - scales[varKey].range()[0]) / (scales[varKey].range()[1] - scales[varKey].range()[0]) * 100) / 100 }) ))
+
+
+	}
+
+	function brushed(varKey){
+		var brush = controlsArea.select("g.control-axis.control-axis-"+varKey);
+		
+		if (!d3.event.sourceEvent) {
+			return; // Only transition after input.
+		}
+		if (!d3.event.selection){
+			return; // Ignore empty selections.
+		}
+
+		var selExtent = d3.event.selection;
+		selExtent = selExtent || [[null,null],[null,null]];
+		selExtent = zip(selExtent);
+
+
+		var data_debug = [null,null];
+		data_debug[0] = selExtent[0].map(scales["width"].invert).map(function(d){ return Math.round(d*100) / 100;})
+		data_debug[1] = selExtent[1].map(scales["height"].invert).map(function(d){ return Math.round(d*100) / 100;})
+
+		var extent_debug = [null, null]
+		extent_debug[0] = selExtent[0][1] - selExtent[0][0]
+		extent_debug[1] = selExtent[1][1] - selExtent[1][0]
+
+		var dataextent_debug = [null,null];
+		dataextent_debug[0] = data_debug[0][1] - data_debug[0][0];
+		dataextent_debug[1] = data_debug[1][1] - data_debug[1][0];
+
+		var scale_debug = [null, null];
+		scale_debug[0] = ((selExtent[0][1] - selExtent[0][0]) / (scales["width"].range()[1] - scales["width"].range()[0]));
+		scale_debug[1] = ((selExtent[1][1] - selExtent[1][0]) / (scales["height"].range()[1] - scales["height"].range()[0]));
+
+		dataextent_debug[0] = Math.round(dataextent_debug[0] * 100) / 100;
+		dataextent_debug[1] = Math.round(dataextent_debug[1] * 100) / 100;
+		scale_debug[0] = Math.round(scale_debug[0] * 100) / 100;
+		scale_debug[1] = Math.round(scale_debug[1] * 100) / 100;
+
+		var normalrange_debug = [null, null]
+		normalrange_debug[0] = selExtent[0].map(function(e){ return Math.round((e - scales["width"].range()[0]) / (scales["width"].range()[1] - scales["width"].range()[0]) * 100) / 100 }) 
+		normalrange_debug[1] = selExtent[1].map(function(e){ return Math.round((e - scales["height"].range()[0]) / (scales["height"].range()[1] - scales["height"].range()[0]) * 100) / 100 }) 
+		
+		debug(state_text, "Brush: [MOVED]");
+		debug(screenrange_text, "Range: " + JSON.stringify(selExtent))
+		debug(datarange_text, "Data: " + JSON.stringify(data_debug))
+		debug(screenextent_text, "Screen Extent: " + JSON.stringify(extent_debug))
+		debug(dataextent_text, "Data Extent: " + JSON.stringify(dataextent_debug))
+		debug(scale_text, "Scale: " + JSON.stringify(scale_debug))
+		debug(normalrange_text, "Normalized Range: " + JSON.stringify(normalrange_debug))
+	}
+
+
+	function brushDone(varKey){
+		var brush = controlsArea.select("g.control-axis.control-axis-"+varKey);
+		
+		var selExtent = d3.event.selection;
+		selExtent = selExtent || [[null,null],[null,null]];
+		selExtent = zip(selExtent);
+
+
+		var data_debug = [null,null];
+		data_debug[0] = selExtent[0].map(scales["width"].invert).map(function(d){ return Math.round(d*100) / 100;})
+		data_debug[1] = selExtent[1].map(scales["height"].invert).map(function(d){ return Math.round(d*100) / 100;})
+
+		var extent_debug = [null, null]
+		extent_debug[0] = selExtent[0][1] - selExtent[0][0]
+		extent_debug[1] = selExtent[1][1] - selExtent[1][0]
+
+		var dataextent_debug = [null,null];
+		dataextent_debug[0] = data_debug[0][1] - data_debug[0][0];
+		dataextent_debug[1] = data_debug[1][1] - data_debug[1][0];
+
+		var scale_debug = [null, null];
+		scale_debug[0] = ((selExtent[0][1] - selExtent[0][0]) / (scales["width"].range()[1] - scales["width"].range()[0]));
+		scale_debug[1] = ((selExtent[1][1] - selExtent[1][0]) / (scales["height"].range()[1] - scales["height"].range()[0]));
+
+		dataextent_debug[0] = Math.round(dataextent_debug[0] * 100) / 100;
+		dataextent_debug[1] = Math.round(dataextent_debug[1] * 100) / 100;
+		scale_debug[0] = Math.round(scale_debug[0] * 100) / 100;
+		scale_debug[1] = Math.round(scale_debug[1] * 100) / 100;
+
+		var normalrange_debug = [null, null]
+		normalrange_debug[0] = selExtent[0].map(function(e){ return Math.round((e - scales["width"].range()[0]) / (scales["width"].range()[1] - scales["width"].range()[0]) * 100) / 100 }) 
+		normalrange_debug[1] = selExtent[1].map(function(e){ return Math.round((e - scales["height"].range()[0]) / (scales["height"].range()[1] - scales["height"].range()[0]) * 100) / 100 }) 
+		
+
+		debug(state_text, "Brush: [END]");
+		debug(screenrange_text, "Range: " + JSON.stringify(selExtent))
+		debug(datarange_text, "Data: " + JSON.stringify(data_debug))
+		debug(screenextent_text, "Screen Extent: " + JSON.stringify(extent_debug))
+		debug(dataextent_text, "Data Extent: " + JSON.stringify(dataextent_debug))
+		debug(scale_text, "Scale: " + JSON.stringify(scale_debug))
+		debug(normalrange_text, "Normalized Range: " + JSON.stringify(normalrange_debug))
+	}
+
+	function debug(text_area, text){
+	  text_area.html(text);
+	}
+
+	function createDebugArea(x,y,anchor,baseline, caption){
+	  var text_area = svg.append("text")
+	    .attr("class", "text-area")
+	    .attr("x", x).attr("y", y)
+	    .attr("text-anchor", anchor)
+	    .style("font-size", 20)
+	    .attr("alignment-baseline", baseline)
+	    .style("pointer-events", "none")
+	    .html(caption)
+
+	  return text_area;
+	}
+
+	function zip(arrays) {
+	    return arrays[0].map(function(_,i){
+	        return arrays.map(function(array){return array[i]})
+	    });
+	}
+
+</script>
+</body>
+</html>

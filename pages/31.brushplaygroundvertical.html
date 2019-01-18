@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+
+body {
+	font: 10px sans-serif;
+}
+
+.axis path,
+.axis line {
+	fill: none;
+	stroke: #000;
+	shape-rendering: crispEdges;
+}
+
+.dot {
+	stroke: #000;
+}
+
+</style>
+</head>
+<body>
+<script src="//d3js.org/d3.v4.min.js"></script>
+<script>
+	var WIDTH = 800;
+	var HEIGHT = 600;
+
+	var scales = {
+			"width": d3.scaleLinear().range([0, HEIGHT-15]).domain([-100, 100]),
+	}
+
+	var axis = {
+		"width": d3.axisRight(scales["width"]),
+	}
+
+	var brushes = {
+		"width": d3.brushY(),
+	}
+
+	var svg = d3.select("body").append("svg")
+		.attr("width", WIDTH)
+		.attr("height", HEIGHT)
+
+	var controlsArea = svg.append("g")
+		.attr("class", "controls");
+
+	initControls();
+
+	var state_text = createDebugArea(100, 60, "start", "before-edge", "Brush: x,x")
+	var screenrange_text = createDebugArea(100, 90, "start", "before-edge", "Range: false")
+	var datarange_text = createDebugArea(100, 120, "start", "before-edge", "Data: x,x")
+	var screenextent_text = createDebugArea(100, 150, "start", "before-edge", "Screen Extent: x,x")
+	var dataextent_text = createDebugArea(100, 180, "start", "before-edge", "Data Extent: x,x")
+	var scale_text = createDebugArea(100, 210, "start", "before-edge", "Scale: x,x")
+	var normalrange_text = createDebugArea(100, 240, "start", "before-edge", "Normalized Range: x,x")
+
+	function initControls(){
+		controlsArea.append("g").attr("class", "control-axis control-axis-width")
+		    .attr("transform", "translate(50,10)")
+		    .call(axis["width"])
+		    	.append("text")
+		    		.attr("x", -6).attr("y", 10)
+		    		.style("text-anchor", "end").style("fill", "black")
+		    		.text("height");
+
+
+  	controlsArea.select("g.control-axis.control-axis-width")
+  		.call(brushes["width"]
+  			.extent([[-15, scales["width"].range()[0]],[20, scales["width"].range()[1]]])
+  			.on("start", brushStarted.bind(null, "width"))
+  			.on("brush", brushed.bind(null, "width"))
+  			.on("end", brushDone.bind(null, "width")));
+
+  	controlsArea.append("rect")
+  		.attr("class", "random-width")
+  		.attr("x", scales["width"].range()[1]-15)
+  		.attr("y", 60)
+  		.attr("width", 30)
+  		.attr("height", 30)
+  		.style("fill", "rgb(0,127,255)")
+  		.on("mousedown touchstart", function(){
+  			var brush = controlsArea.select("g.control-axis.control-axis-width");
+  			var cx = Math.random();
+  			var dx = Math.random() * 0.5;
+
+  			cx = (scales["width"].range()[1] - scales["width"].range()[0]) * cx
+				dx = (scales["width"].range()[1] - scales["width"].range()[0]) * dx;
+				
+				var x0 = cx - dx / 2;
+				var x1 = cx + dx / 2;
+
+				brush.call(brushes["width"].move, x1 > WIDTH ? [WIDTH - dx, WIDTH] : x0 < 0 ? [0, dx] : [x0, x1]);
+  		})
+
+	};
+
+	function brushStarted(varKey){
+		var brush = controlsArea.select("g.control-axis.control-axis-"+varKey);
+		
+		var selExtent = d3.event.selection;
+		
+		debug(state_text, "Brush: [START]");
+		debug(screenrange_text, "Range: " + JSON.stringify(selExtent))
+		debug(datarange_text, "Data: " + JSON.stringify(selExtent.map(scales[varKey].invert).map(function(d){ return Math.round(d*100) / 100;})))
+		debug(screenextent_text, "Screen Extent: " + JSON.stringify(selExtent[1] - selExtent[0]))
+		debug(dataextent_text, "Data Extent: " + JSON.stringify(selExtent.map(scales[varKey].invert)[1] - selExtent.map(scales[varKey].invert)[0]))
+		debug(scale_text, "Scale: " + JSON.stringify(((selExtent[1] - selExtent[0]) / (scales[varKey].range()[1] - scales[varKey].range()[0]))))
+		debug(normalrange_text, "Normalized Range: " + JSON.stringify( selExtent.map(function(e){ return Math.round((e - scales[varKey].range()[0]) / (scales[varKey].range()[1] - scales[varKey].range()[0]) * 100) / 100 }) ))
+
+
+	}
+
+	function brushed(varKey){
+		var brush = controlsArea.select("g.control-axis.control-axis-"+varKey);
+		
+		if (!d3.event.sourceEvent) {
+			return; // Only transition after input.
+		}
+		if (!d3.event.selection){
+			return; // Ignore empty selections.
+		}
+
+		var selExtent = d3.event.selection;
+		
+		debug(state_text, "Brush: [MOVED]");
+		debug(screenrange_text, "Range: " + JSON.stringify(selExtent))
+		debug(datarange_text, "Data: " + JSON.stringify(selExtent.map(scales[varKey].invert).map(function(d){ return Math.round(d*100) / 100;})))
+		debug(screenextent_text, "Screen Extent: " + JSON.stringify(selExtent[1] - selExtent[0]))
+		debug(dataextent_text, "Data Extent: " + JSON.stringify(selExtent.map(scales[varKey].invert)[1] - selExtent.map(scales[varKey].invert)[0]))
+		debug(scale_text, "Scale: " + JSON.stringify(((selExtent[1] - selExtent[0]) / (scales[varKey].range()[1] - scales[varKey].range()[0]))))
+		debug(normalrange_text, "Normalized Range: " + JSON.stringify( selExtent.map(function(e){ return Math.round((e - scales[varKey].range()[0]) / (scales[varKey].range()[1] - scales[varKey].range()[0]) * 100) / 100 }) ))
+	}
+
+
+	function brushDone(varKey){
+		var brush = controlsArea.select("g.control-axis.control-axis-"+varKey);
+		
+		var selExtent = d3.event.selection;
+		selExtent = selExtent || [null,null];
+		debug(state_text, "Brush: [END]");
+		debug(screenrange_text, "Range: " + JSON.stringify(selExtent))
+		debug(datarange_text, "Data: " + JSON.stringify(selExtent.map(scales[varKey].invert).map(function(d){ return Math.round(d*100) / 100;})))
+		debug(screenextent_text, "Screen Extent: " + JSON.stringify(selExtent[1] - selExtent[0]))
+		debug(dataextent_text, "Data Extent: " + JSON.stringify(selExtent.map(scales[varKey].invert)[1] - selExtent.map(scales[varKey].invert)[0]))
+		debug(scale_text, "Scale: " + JSON.stringify(((selExtent[1] - selExtent[0]) / (scales[varKey].range()[1] - scales[varKey].range()[0]))))
+		debug(normalrange_text, "Normalized Range: " + JSON.stringify( selExtent.map(function(e){ return Math.round((e - scales[varKey].range()[0]) / (scales[varKey].range()[1] - scales[varKey].range()[0]) * 100) / 100 }) ))
+	}
+
+	function debug(text_area, text){
+	  text_area.html(text);
+	}
+
+	function createDebugArea(x,y,anchor,baseline, caption){
+	  var text_area = svg.append("text")
+	    .attr("class", "text-area")
+	    .attr("x", x).attr("y", y)
+	    .attr("text-anchor", anchor)
+	    .style("font-size", 20)
+	    .attr("alignment-baseline", baseline)
+	    .style("pointer-events", "none")
+	    .html(caption)
+
+	  return text_area;
+	}
+
+</script>
+</body>
+</html>
