@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1, maximum-scale=1">
+<link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.min.css">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.9/css/select2.min.css" rel="stylesheet" />
+<style>
+	.edgePath path {
+	  stroke: #333;
+	  stroke-width: 1.5px;
+	}
+</style>
+</head>
+<body>
+	<script src="https://d3js.org/d3.v4.min.js"></script>
+	<script src="/vendor/d3brush-util/d3brush-util.js"></script>
+
+	<script src="/vendor/lodash/lodash.min.js"></script>
+	<script src="/vendor/graphlib/graphlib.core.min.js"></script>
+	<script src="/vendor/dagre/dagre.core.min.js"></script>
+	<script src="/vendor/dagre-d3/dagre-d3.core.min.js"></script>
+
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.9/js/select2.min.js"></script>
+
+
+	<select class="js-example-basic-single" name="state">
+		<option val="dal.customer">customer</option>
+		<option val="dal.role">role</option>
+		<option val="dal.permission">permission</option>
+		<option val="dal.rolepermission">rolepermission</option>
+		<option val="dal.customerrole">customerrole</option>
+		<option val="model.customer">customer</option>
+		<option val="model.role">role</option>
+		<option val="model.permission">permission</option>
+	</select>
+
+	
+	<svg id="svg-canvas">
+		
+	</svg>
+	
+	<script>
+		var DATASET = {
+		    "dal": {
+		        "customer": {
+		            "type": "object",
+		            "properties": {
+		                "Id": {
+		                    "type": "integer"
+		                },
+		                "UUID": {
+		                    "type": "string"
+		                },
+		                "Name": {
+		                    "type": "string"
+		                },
+		                "OwnerEmail": {
+		                    "type": "string"
+		                },
+		                "CreatedAt": {
+		                    "type": "string",
+		                    "format": "date-time"
+		                },
+		                "CreatedBy": {
+		                    "type": "string"
+		                },
+		                "ChangedAt": {
+		                    "type": "string",
+		                    "format": "date-time"
+		                },
+		                "ChangedBy": {
+		                    "type": "string"
+		                }
+		            }
+		        },
+		        "role": {
+		            "type": "object",
+		            "properties": {
+		                "Id": {
+		                    "type": "string"
+		                },
+		                "UUID": {
+		                    "type": "string",
+		                    "format": "uuid"
+		                },
+		                "Name": {
+		                    "type": "string"
+		                },
+		                "CreatedAt": {
+		                    "type": "string",
+		                    "format": "date-time"
+		                },
+		                "CreatedBy": {
+		                    "type": "string"
+		                },
+		                "ChangedAt": {
+		                    "type": "string",
+		                    "format": "date-time"
+		                },
+		                "ChangedBy": {
+		                    "type": "string"
+		                }
+		            }
+		        },
+		        "permission": {
+		            "type": "object",
+		            "properties": null,
+		            "Id": {
+		                "type": "string"
+		            },
+		            "Slug": {
+		                "type": "string"
+		            },
+		            "CreatedAt": {
+		                "type": "string",
+		                "format": "date-time"
+		            },
+		            "CreatedBy": {
+		                "type": "string"
+		            },
+		            "ChangedAt": {
+		                "type": "string",
+		                "format": "date-time"
+		            },
+		            "ChangedBy": {
+		                "type": "string"
+		            }
+		        },
+		        "rolepermission": {
+		            "Id": {
+		                "type": "integer"
+		            },
+		            "RoleId": {
+		                "type": "integer"
+		            },
+		            "PermissionId": {
+		                "type": "integer"
+		            },
+		            "Revoked": {
+		                "type": "boolean"
+		            }
+		        },
+		        "customerrole": {
+		            "type": "object",
+		            "properties": {
+		                "Id": {
+		                    "type": "integer"
+		                },
+		                "RoleId": {
+		                    "type": "integer"
+		                },
+		                "CustomerId": {
+		                    "type": "integer"
+		                },
+		                "Revoked": {
+		                    "type": "boolean"
+		                }
+		            }
+		        }
+		    },
+		    "model": {
+		        "customer": {
+		            "type": "object",
+		            "properties": {
+		                "UUID": {
+		                    "type": "string",
+		                    "format": "uuid"
+		                },
+		                "Name": {
+		                    "type": "string"
+		                },
+		                "OwnerEmail": {
+		                    "type": "string"
+		                },
+		                "Roles": {
+		                    "type": "array",
+		                    "items": {
+		                        "$ref": "#/model/role"
+		                    }
+		                },
+		                "Permissions": {
+		                    "type": "array",
+		                    "items": {
+		                        "$ref": "#/model/permission"
+		                    }
+		                }
+		            }
+		        },
+		        "role": {
+		            "type": "object",
+		            "properties": {
+		                "UUID": {
+		                    "type": "string",
+		                    "format": "uuid"
+		                },
+		                "Name": {
+		                    "type": "string"
+		                },
+		                "Permissions": {
+		                    "type": "array",
+		                    "items": {
+		                        "$ref": "#/model/permission"
+		                    }
+		                }
+		            }
+		        },
+		        "permission": {
+		            "type": "object",
+		            "properties": {
+		                "UUID": {
+		                    "type": "string",
+		                    "format": "uuid"
+		                },
+		                "Slug": {
+		                    "type": "string"
+		                }
+		            }
+		        }
+		    }
+		}
+		var WIDTH = 800;
+		var HEIGHT = 600;
+
+		var HEIGHT_PER_PROPERTY = 20;
+		var AVG_PIXEL_PER_CHARACTER = 11;
+		var MAX_RENDERED_TEXT_SIZE = 50;
+
+		var Y_OFFSET = 3;
+		var X_OFFSET = 10;
+
+		var INITIAL_SCALE = 0.9
+
+		function estimateSize(entity){
+			return {
+				width: AVG_PIXEL_PER_CHARACTER * d3.min([MAX_RENDERED_TEXT_SIZE, d3.max(entity.map((e) => e.name.length))]),
+				height: (entity.length + 1) * HEIGHT_PER_PROPERTY 
+			}
+		}
+
+		function renderEntity(svg, entity, entity_name){
+			var size = estimateSize(entity);
+
+			var plot = svg.select("g.plot");
+
+			var g = plot.append("g")
+				.attr("class", "entity " + entity_name)
+				.attr("transform", "translate(0,0)");
+
+			g.append("rect")
+					.attr("class", "random-width")
+					.attr("x", 0)
+					.attr("y", 0)
+					.attr("width", size.width)
+					.attr("height", size.height)
+					.style("fill", "rgb(255,255,255)")
+					.style("stroke", "#777");
+
+			g.append("rect")
+				.attr("class", "entity-title")
+				.attr("x", 0)
+				.attr("y", 0)
+				.attr("width", size.width)
+				.attr("height", HEIGHT_PER_PROPERTY)
+				.style("fill", "rgba(0,0,0,0)")
+				.style("stroke", "#777")
+			
+			g.append("text")
+			    .attr("class", "text-area")
+			    .attr("x", size.width / 2).attr("y", HEIGHT_PER_PROPERTY/2 + Y_OFFSET)
+			    .attr("text-anchor", "middle")
+			    .style("font-size", 13)
+			    .attr("alignment-baseline", "middle")
+			    .html(entity_name);
+
+	    entity.forEach(renderProperty.bind(null, svg, plot, g, size))
+		}
+
+		function renderProperty(svg, plot, g, size, current_itr, idx){
+			g.append("text")
+			    .attr("class", "text-area")
+			    .attr("x", X_OFFSET).attr("y", (HEIGHT_PER_PROPERTY * (idx + 1)) + (HEIGHT_PER_PROPERTY / 2 + Y_OFFSET))
+			    .attr("text-anchor", "start")
+			    .style("font-size", 13)
+			    .attr("alignment-baseline", "middle")
+			    .html(current_itr.name.substring(0, MAX_RENDERED_TEXT_SIZE));
+		}
+
+		function buildGraph(entities){
+			// Create a new directed graph 
+			var g = new dagre.graphlib.Graph({directed: true, compound: true});
+
+			// Set an object for the graph label
+			g.setGraph({
+				rankdir: "TB",
+				align: "UL",
+				nodesep: 40,
+				edgesep: 10,
+				ranksep: 5,
+				ranker: "longest-path"
+			});
+
+			// Default to assigning a new object as a label for each new edge.
+			g.setDefaultEdgeLabel(function() { return {minlen: 5}; });
+
+			// Add nodes to the graph. The first argument is the node id. The second is
+			// metadata about the node. In this case we're going to add labels to each of
+			// our nodes.
+			Object.keys(entities).forEach((e) => {
+				var size = estimateSize(entities[e]);
+
+				g.setNode(e.toLowerCase(), 
+									{ label: e, 
+										width: size.width, 
+										height: size.height });
+			});
+
+			// Add edges to the graph.
+			Object.keys(entities).forEach((e) => {
+				var deps = entities[e].filter((f) => f.fk !== null )
+
+				deps.forEach((d) => {
+					g.setEdge(e.toLowerCase(), d.fk.toLowerCase())
+				});
+			})
+
+			dagre.layout(g);
+
+			return g;
+		}
+
+		function renderCanvas(w, h){
+			var svg = d3.select("#svg-canvas")
+				.attr("width", w)
+				.attr("height", h);
+
+			var plot = svg.append("g")
+				.attr("class", "plot")
+				.attr("transform", "translate(0,0)");
+
+			svg.append('defs').append('marker')
+					.attr('id','arrowhead')
+					.attr('viewBox','-0 -5 10 10')
+					.attr('refX',10)
+					.attr('refY',0)
+					.attr('orient','auto')
+					.attr('markerWidth',6)
+					.attr('markerHeight',6)
+					.attr('xoverflow','visible')
+			    .append('svg:path')
+				    .attr('d', 'M 0,-5 L 10 ,0 L 0,5')
+				    .attr('fill', '#000')
+				    .style('stroke','none');
+
+			return svg;
+		}
+
+		function renderGraph(svg, graph){
+			var plot = svg.select("g.plot");
+
+			var gedges = plot.append("g")
+				.attr("class", "edges")
+				.attr("transform", "translate(0,0)");
+
+			var line = d3.line()
+			    .x(function(d) { return d.x; })
+			    .y(function(d) { return d.y; })
+			    .curve(d3.curveBundle.beta(1));
+
+			graph.nodes().forEach((n) => {
+				var g = svg.select(`g.entity.${n}`);
+				var node = graph.node(n);
+				
+				g.attr("transform", `translate(${node.x - node.width / 2}, ${node.y - node.height / 2})`);
+			});
+
+			graph.edges().forEach(function(e) {
+				var edge = graph.edge(e);
+
+				var g = gedges.append("g")
+					.attr("class", "edgePath")
+				g.append("svg:path")
+				    .attr("class", "path")
+				    .attr('fill', 'none')
+				    .style('stroke','#000')
+				    .attr('marker-end','url(#arrowhead)')
+				    .attr("d", line(edge.points));
+
+			    console.log("Edge " + e.v + " -> " + e.w + ": " + JSON.stringify(graph.edge(e)));
+			});
+		}
+
+		function makeZoomable(svg){
+			var plot = svg.select("g.plot");
+			
+			var zoom = d3.zoom().on("zoom", function() {
+	      plot.attr("transform", d3.event.transform);
+	    });
+			svg.call(zoom);
+
+			return zoom;
+		}
+
+		function recenterGraph(svg, graph, zoom){
+			var initialScale = INITIAL_SCALE;
+			svg.call(zoom.transform, d3.zoomIdentity.translate((svg.attr("width") - graph.graph().width * initialScale) / 2, 20).scale(initialScale));
+
+			svg.attr('height', graph.graph().height * initialScale + 40);
+		}
+
+		function main(){
+
+			var svg = renderCanvas(WIDTH, HEIGHT);
+
+			Object.keys(entities).forEach((e) => {
+				renderEntity(svg, entities[e], e);
+			});
+
+			var graph = buildGraph(entities);
+
+			renderGraph(svg, graph);
+
+			var zoom = makeZoomable(svg);
+			recenterGraph(svg, graph, zoom);
+		}
+
+		main();
+	</script>
+</body>
+</html>

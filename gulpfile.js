@@ -85,6 +85,26 @@ gulp.task('copy', function() {
     gulp.src(['public/lib/knockout/dist/knockout.js', 'public/lib/knockout/dist/knockout.debug.js'])
         .pipe(gulp.dest('vendor/knockout'))
 
+    gulp.src(['public/lib/d3brush-util/dist/js/d3brush-util.js', 'public/lib/d3brush-util/dist/js/d3brush-util.min.js'])
+        .pipe(gulp.dest('vendor/d3brush-util')) 
+
+    gulp.src(['public/lib/lodash/dist/lodash.min.js', 'public/lib/lodash/dist/lodash.fp.min.js'])
+        .pipe(gulp.dest('vendor/lodash')) 
+
+    gulp.src(['public/lib/graphlib/dist/graphlib.core.min.js'])
+        .pipe(gulp.dest('vendor/graphlib')) 
+
+    gulp.src(['public/lib/dagre/dist/dagre.core.min.js'])
+        .pipe(gulp.dest('vendor/dagre')) 
+
+    gulp.src(['public/lib/dagre-d3/dist/dagre-d3.core.min.js'])
+        .pipe(gulp.dest('vendor/dagre-d3')) 
+
+    gulp.src(['node_modules/js-yaml/dist/*'])
+        .pipe(gulp.dest('vendor/js-yaml')) 
+
+
+
 })
 
 // Run everything

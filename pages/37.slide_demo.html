@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html class="debug">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.min.css">
+<style>
+	* { box-sizing: border-box; }
+
+	body{
+		height: 100vh;
+		width: 100vw;
+		overflow: hidden;
+		white-space: nowrap;
+	}
+
+	.app-container{
+		height: 100%;
+		width: 100%;
+		background-color: #eee;
+		box-sizing: border-box;
+	}
+
+	.app-lock-overlay{
+		position: absolute;
+		top: 0;
+		left: 0;
+		height: 100%;
+		width: 100%;
+		background-color: black;
+		opacity: 0;
+		margin-top: 100%;
+		box-sizing: border-box;
+
+		transition: opacity 0.2s;
+	}
+
+	.app-container.locked{
+		pointer-events: none;
+	}
+
+	.app-container.locked + .app-lock-overlay{
+		margin-top: 0;
+		opacity: 0.7;
+	}
+	
+	.app-content{
+		position: relative;
+	}
+
+	.app-content section{
+		display: inline-block;
+		margin: 0;
+		padding: 0;
+		height: 100%;
+		box-sizing: border-box;
+	}
+
+	.app-content .sidebar-wrapper{
+		position: absolute;
+		width: 200px;
+		background-color: darkgrey;
+	}
+
+	.app-content .main-wrapper{
+		position: absolute;
+		width: calc(100% - 200px);
+		margin-left: 200px;
+		overflow: hidden;
+		background-color: goldenrod;
+
+		transition: margin-left .5s, width .5s;
+	}
+
+	.app-content.closed .sidebar-wrapper{
+		
+	}
+	
+	.app-content.closed .main-wrapper{
+		width: calc(100%);
+		margin-left: 0px;
+	}
+
+	.question-card{
+		position: absolute;
+		width: 500px;
+		height: calc(100% - 50px);
+		margin-top: 25px;
+		background-color: white;
+		overflow: hidden;
+
+		transition: margin-left 0.2s, opacity 1s;
+	}
+
+	.question-card.answered{
+		margin-left: calc(-500px + 30px);
+	}
+
+	.question-card.ready{
+		margin-left: calc(50% - calc(500px / 2))
+	}
+
+	.question-card.loaded{
+		margin-left: calc(100% - 30px);
+		transition: margin-left 0s, opacity 1s;
+	}
+
+	.question-card.disposable{
+		opacity: 0;
+		margin-left: calc(-500px + 30px);
+	}
+	
+	.question-card:nth-child(1){
+		border: 3px dashed rgb(255, 127, 0) !important;
+	}
+
+	.question-card:nth-child(2){
+		border: 3px dashed rgb(0, 127, 255) !important;
+	}
+
+	.question-card:nth-child(3){
+		border: 3px dashed rgb(0, 255, 127) !important;
+	}
+
+	.question-card:nth-child(4){
+		border: 3px dashed hotpink !important;
+	}
+
+	.question-card .card{
+		display: flex;
+		flex-direction: column;
+		height: 100%;
+	}
+
+	.question-card .card .card-heading{
+		flex-grow: 1;
+		min-height: 40px;
+		border-bottom: 1px solid #ddd;
+	}
+
+	.question-card .card .card-body{
+		flex-grow: 9999;
+		
+		display: flex;
+		flex-direction: column;
+		justify-content: space-between;
+	}
+
+	.question-card .card .card-body .controls{
+		flex-grow: 1;
+
+		display: flex;
+		justify-content: space-around;
+		padding: 10px 0;
+	}
+
+	.question-card .card .card-body .controls > *{
+		flex-grow: 1;
+		margin: 0 20px;
+	}
+
+	.question-card .card .card-body .image-box{
+		flex-grow: 9999;
+		
+		overflow: hidden;
+
+		display: flex;
+		flex-wrap: nowrap;
+		justify-content: center;
+	}
+
+	.question-card .card .card-body .image-box .flexed-img{
+		display: flex;
+		flex-flow: column nowrap;
+		align-items: center;
+		justify-content: center;
+	}
+
+	.question-card .card .card-body .image-box img {
+	  object-fit: cover;
+	  width: 70%;
+	  height: auto;
+	}
+
+
+	.question-card .card .card-body .inputs{
+		flex-grow: 1;
+		text-align: center;
+		padding: 10px 10px 0 10px;
+	}
+
+	.question-card .card .card-body .inputs > * {
+		width: calc(100% - 20px);
+
+	}
+
+		.debug .app-toolbar{
+			height: 50px;
+		}
+
+		.debug .app-content{
+			height: calc(100% - 50px - 20px);
+		}
+
+		.debug .app-footer{
+			height: 20px;
+		}
+
+		.debug body{
+			border: 2px green solid;
+		}
+
+		.debug .app-container{
+			border: 2px red solid;
+		}
+
+		.debug .app-toolbar{
+			background-color: limegreen;
+		}
+		.debug .app-content{
+			background-color: lightblue;
+		}
+		.debug .app-footer{
+			background-color: dodgerblue;
+		}
+
+		.debug .sidebar-wrapper{
+			border-right: 3px dashed orange;
+			border-bottom: 3px dashed orange;
+		}
+
+		.debug .main-wrapper{
+			border-right: 3px dotted black;
+			border-bottom: 3px dotted black;
+		}
+
+</style>
+</head>
+<body>
+	<script src="/vendor/bootstrap/js/bootstrap.min.js"></script>
+	<script src="https://d3js.org/d3.v4.min.js"></script>
+	<script src="/vendor/d3brush-util/d3brush-util.js"></script>
+	<script src="/js/script-35.js"></script>
+	
+	<div class="app-container">
+		<div class="app-toolbar">
+			<span>app-toolbar</span>
+		</div>
+		<div class="app-content">
+			<section class="sidebar-wrapper">
+				<ul class="sidebar">
+					<li>message 1</li>
+					<li>message 2</li>
+					<li>message 3</li>
+				</ul>
+			</section>
+			<section class="main-wrapper">
+				<div class="question-card">
+					card 1
+				</div>
+				<div class="question-card">
+					<div class="card">
+						<div class="card-heading text-center">
+							<h5>
+								Is 'subject name' "Pedro Jorge gome de Sousa" ?
+							</h5>
+						</div>
+						<div class="card-body">
+							<div class="controls">
+								<button class="btn btn-danger">No</button>
+								<button class="btn btn-success">Yes</button>
+							</div>
+							<div class="image-box">
+								<div class="flexed-img">
+									<img src="https://cdn.jotfor.ms/pdf-templates/screenshots/425x575_2083315001395045.png?v=1.1.16" alt="">
+								</div>
+							</div>
+							<div class="inputs">
+								<input type="text" placeholder="eg: 'invoice', 'citizen card...">
+							</div>
+							<div class="controls">
+								<button class="btn btn-danger">No</button>
+								<button class="btn btn-success">Yes</button>
+							</div>
+						</div>
+					</div>
+				</div>
+				<div class="question-card">
+					card 3
+				</div>
+				<div class="question-card">
+					card 4
+				</div>
+			</section>
+		</div>
+		<div class="app-footer">
+			<span>app-footer</span>
+		</div>
+	</div>
+	<div class="app-lock-overlay">
+		
+	</div>
+
+
+<script>
+		function open(schedule){
+			document.body.querySelector(".app-content").className = "app-content";
+			if (schedule !== false){
+				setTimeout(close, 2000);
+			}
+		}
+
+		function close(schedule){
+			document.body.querySelector(".app-content").className = "app-content closed";
+
+			if(schedule !== false){
+				setTimeout(open, 2000);	
+			}
+			
+		}
+
+		var qstates = [2, 1, 0, 3];
+
+		var qclassNames = [
+			"question-card loaded",
+			"question-card ready",
+			"question-card answered",
+			"question-card disposable"
+		]
+
+		function tick(){
+			document.body.querySelectorAll(".question-card")[0].className = qclassNames[qstates[0] % 4];
+			document.body.querySelectorAll(".question-card")[1].className = qclassNames[qstates[1] % 4];
+			document.body.querySelectorAll(".question-card")[2].className = qclassNames[qstates[2] % 4];
+			document.body.querySelectorAll(".question-card")[3].className = qclassNames[qstates[3] % 4];
+
+			qstates[0] += 1;
+			qstates[1] += 1;
+			qstates[2] += 1;
+			qstates[3] += 1;
+		}
+
+		var app_states = [1];
+		var appClassNames = [
+			"app-container",
+			"app-container locked",
+		]
+
+		function lock(){
+			document.body.querySelector(".app-container").className = appClassNames[app_states[0] % 2];
+
+			app_states[0] += 1;
+		}
+
+		// open()
+		// setInterval(tick, 3000);
+		// setInterval(lock, 10000);
+
+		close(false);
+		tick();
+</script>
+</body>
+</html>

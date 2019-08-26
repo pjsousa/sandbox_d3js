@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="initial-scale=1, maximum-scale=1">
+<link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.min.css">
+<style>
+	.edgePath path {
+	  stroke: #333;
+	  stroke-width: 1.5px;
+	}
+</style>
+</head>
+<body>
+	<script src="https://d3js.org/d3.v4.min.js"></script>
+	<script src="/vendor/d3brush-util/d3brush-util.js"></script>
+
+	<script src="/vendor/lodash/lodash.min.js"></script>
+	<script src="/vendor/graphlib/graphlib.core.min.js"></script>
+	<script src="/vendor/dagre/dagre.core.min.js"></script>
+	<script src="/vendor/dagre-d3/dagre-d3.core.min.js"></script>
+	<script src="/vendor/js-yaml/js-yaml.min.js"></script>
+	
+	<svg id="svg-canvas">
+		
+	</svg>
+	
+	<script>
+		var WIDTH = 800;
+		var HEIGHT = 600;
+
+		var HEIGHT_PER_PROPERTY = 20;
+		var AVG_PIXEL_PER_CHARACTER = 11;
+		var MAX_RENDERED_TEXT_SIZE = 50;
+
+		var Y_OFFSET = 3;
+		var X_OFFSET = 10;
+
+		var INITIAL_SCALE = 0.9
+
+		function estimateSize(entity){
+			return {
+				width: AVG_PIXEL_PER_CHARACTER * d3.min([MAX_RENDERED_TEXT_SIZE, d3.max(entity.map((e) => e.name.length))]),
+				height: (entity.length + 1) * HEIGHT_PER_PROPERTY 
+			}
+		}
+
+		function renderEntity(svg, entity, entity_name){
+			var size = estimateSize(entity);
+
+			var plot = svg.select("g.plot");
+
+			var g = plot.append("g")
+				.attr("class", "entity " + entity_name)
+				.attr("transform", "translate(0,0)");
+
+			g.append("rect")
+					.attr("class", "random-width")
+					.attr("x", 0)
+					.attr("y", 0)
+					.attr("width", size.width)
+					.attr("height", size.height)
+					.style("fill", "rgb(255,255,255)")
+					.style("stroke", "#777");
+
+			g.append("rect")
+				.attr("class", "entity-title")
+				.attr("x", 0)
+				.attr("y", 0)
+				.attr("width", size.width)
+				.attr("height", HEIGHT_PER_PROPERTY)
+				.style("fill", "rgba(0,0,0,0)")
+				.style("stroke", "#777")
+			
+			g.append("text")
+			    .attr("class", "text-area")
+			    .attr("x", size.width / 2).attr("y", HEIGHT_PER_PROPERTY/2 + Y_OFFSET)
+			    .attr("text-anchor", "middle")
+			    .style("font-size", 13)
+			    .attr("alignment-baseline", "middle")
+			    .html(entity_name);
+
+	    entity.forEach(renderProperty.bind(null, svg, plot, g, size))
+		}
+
+		function renderProperty(svg, plot, g, size, current_itr, idx){
+			g.append("text")
+			    .attr("class", "text-area")
+			    .attr("x", X_OFFSET).attr("y", (HEIGHT_PER_PROPERTY * (idx + 1)) + (HEIGHT_PER_PROPERTY / 2 + Y_OFFSET))
+			    .attr("text-anchor", "start")
+			    .style("font-size", 13)
+			    .attr("alignment-baseline", "middle")
+			    .html(current_itr.name.substring(0, MAX_RENDERED_TEXT_SIZE));
+		}
+
+		function buildGraph(entities){
+			// Create a new directed graph 
+			var g = new dagre.graphlib.Graph({directed: true, compound: true});
+
+			// Set an object for the graph label
+			g.setGraph({
+				rankdir: "TB",
+				align: "UL",
+				nodesep: 40,
+				edgesep: 10,
+				ranksep: 5,
+				ranker: "longest-path"
+			});
+
+			// Default to assigning a new object as a label for each new edge.
+			g.setDefaultEdgeLabel(function() { return {minlen: 5}; });
+
+			// Add nodes to the graph. The first argument is the node id. The second is
+			// metadata about the node. In this case we're going to add labels to each of
+			// our nodes.
+			Object.keys(entities).forEach((e) => {
+				var size = estimateSize(entities[e]);
+
+				g.setNode(e.toLowerCase(), 
+									{ label: e, 
+										width: size.width, 
+										height: size.height });
+			});
+
+			// Add FK edges to the graph.
+			Object.keys(entities).forEach((e) => {
+				var deps = entities[e].filter((f) => typeof f.fk !== "undefined" && f.fk !== null )
+
+				deps.forEach((d) => {
+					g.setEdge(e.toLowerCase(), d.fk.toLowerCase(), {minlen: 5, kind: "fk"})
+				});
+			})
+
+			// Add extension edges to the graph.
+			Object.keys(entities).forEach((e) => {
+				var deps = entities[e].filter((f) => typeof f.extends !== "undefined" && f.extends !== null )
+
+				deps.forEach((d) => {
+					g.setEdge(d.extends.toLowerCase(), e.toLowerCase(), {minlen: 5, kind: "extends"})
+				});
+			})
+
+			// Add extension edges to the graph.
+			Object.keys(entities).forEach((e) => {
+				var deps = entities[e].filter((f) => typeof f.serializes !== "undefined" && f.serializes !== null )
+
+				deps.forEach((d) => {
+					g.setEdge(d.serializes.toLowerCase(), e.toLowerCase(), {minlen: 5, kind: "serializes"})
+				});
+			})
+
+
+			dagre.layout(g);
+
+			return g;
+		}
+
+		function renderCanvas(w, h){
+			var svg = d3.select("#svg-canvas")
+				.attr("width", w)
+				.attr("height", h);
+
+			var plot = svg.append("g")
+				.attr("class", "plot")
+				.attr("transform", "translate(0,0)");
+
+			svg.append('defs').append('marker')
+					.attr('id','arrowhead_fk')
+					.attr('viewBox','-0 -5 10 10')
+					.attr('refX',10)
+					.attr('refY',0)
+					.attr('orient','auto')
+					.attr('markerWidth',6)
+					.attr('markerHeight',6)
+					.attr('xoverflow','visible')
+			    .append('svg:path')
+				    .attr('d', 'M 0,-5 L 10 ,0 L 0,5')
+				    .attr('fill', '#000')
+				    .style('stroke','none');
+
+	    svg.append('defs').append('marker')
+	    		.attr('id','arrowhead_ext')
+	    		.attr('refX',0)
+	    		.attr('refY', 4)
+	    		.attr('orient','auto')
+	    		.attr('markerWidth',10)
+	    		.attr('markerHeight',10)
+	    		.attr('xoverflow','visible')
+	        .append('svg:path')
+	    	    .attr('d', 'M8,0 L8,8 L0,4 z')
+	    	    .attr('fill', '#999')
+	    	    .style('stroke','none');
+
+
+			return svg;
+		}
+
+		function renderGraph(svg, graph){
+			var plot = svg.select("g.plot");
+
+			var gedges = plot.append("g")
+				.attr("class", "edges")
+				.attr("transform", "translate(0,0)");
+
+			var line = d3.line()
+			    .x(function(d) { return d.x; })
+			    .y(function(d) { return d.y; })
+			    .curve(d3.curveBundle.beta(1));
+
+			graph.nodes().forEach((n) => {
+				var g = svg.select(`g.entity.${n}`);
+				var node = graph.node(n);
+				
+				g.attr("transform", `translate(${node.x - node.width / 2}, ${node.y - node.height / 2})`);
+			});
+
+			graph.edges().forEach(function(e, i) {
+				var edge = graph.edge(e);
+
+				var markerend = {
+					"extends": "",
+					"serializes": "",
+					"fk": "url(#arrowhead_fk)"
+				}
+
+				var markerstart = {
+					"extends": "url(#arrowhead_ext)",
+					"serializes": "",
+					"fk": ""
+				}
+
+				var stroke = {
+					"extends": "#999",
+					"serializes": "#999",
+					"fk": "#000"
+				}
+
+				var stroke_width = {
+					"extends": "1px",
+					"serializes": "1px",
+					"fk": "2px"
+				}
+
+				var stroke_width = {
+					"extends": "1px",
+					"serializes": "1px",
+					"fk": "2px"
+				}
+
+				var dasharray = {
+					"extends": "10,5",
+					"serializes": "2,4",
+					"fk": ""
+				}
+
+				var g = gedges.append("g")
+					.attr("class", "edgePath")
+				g.append("svg:path")
+				    .attr("class", "path")
+				    .attr('fill', 'none')
+				    .style('stroke', stroke[edge.kind])
+				    .style('stroke-width', stroke_width[edge.kind])
+				    .attr("stroke-dasharray", dasharray[edge.kind])
+				    .attr('marker-start', markerstart[edge.kind])
+				    .attr('marker-end', markerend[edge.kind])
+				    .attr("d", line(edge.points));
+			});
+		}
+
+		function makeZoomable(svg){
+			var plot = svg.select("g.plot");
+			
+			var zoom = d3.zoom().on("zoom", function() {
+	      plot.attr("transform", d3.event.transform);
+	    });
+			svg.call(zoom);
+
+			return zoom;
+		}
+
+		function recenterGraph(svg, graph, zoom){
+			var initialScale = INITIAL_SCALE;
+			svg.call(zoom.transform, d3.zoomIdentity.translate((svg.attr("width") - graph.graph().width * initialScale) / 2, 20).scale(initialScale));
+
+			svg.attr('height', graph.graph().height * initialScale + 40);
+		}
+
+		function main(){
+
+			var entities = {
+				"customer": [
+					{name: "Id", is_identity: true, sql_type: "int", sql_size: null, nullable: false, fk: null, fk_column: null},
+					{name: "UUID", is_identity: false, sql_type: "uniqueidentifier", sql_size: null, nullable: false, fk: null, fk_column: null},
+					{name: "Name", is_identity: false, sql_type: "nvarchar", sql_size: 250, nullable: false, fk: null, fk_column: null},
+					{name: "OwnerEmail", is_identity: false, sql_type: "nvarchar", sql_size: 250, nullable: false, fk: null, fk_column: null},
+					{name: "CreatedAt", is_identity: false, sql_type: "datetime", sql_size: null, nullable: true, fk: null, fk_column: null},
+					{name: "CreatedBy", is_identity: false, sql_type: "nvarchar", sql_size: 100, nullable: true, fk: null, fk_column: null},
+					{name: "ChangedAt", is_identity: false, sql_type: "datetime", sql_size: null, nullable: true, fk: null, fk_column: null},
+					{name: "ChangedBy", is_identity: false, sql_type: "nvarchar", sql_size: 100, nullable: true, fk: null, fk_column: null}
+				],
+				"baseentity": [
+					{name: "Id", is_identity: true, sql_type: "int", sql_size: null, nullable: false, fk: null, fk_column: null},
+					{name: "AccountBlocked", is_identity: false, sql_type: "nvarchar", sql_size: null, nullable: false, fk: null, fk_column: null},
+					{name: "CustomerId", is_identity: false, sql_type: "nvarchar", sql_size: 250, nullable: false, fk: "Customer", fk_column: null},
+				],
+				"user": [
+					{name: "Id", is_identity: true, sql_type: "int", sql_size: null, nullable: false, fk: null, fk_column: null},
+					{name: "email", is_identity: false, sql_type: "nvarchar", sql_size: null, nullable: false, fk: null, fk_column: null},
+					{name: "password", is_identity: false, sql_type: "nvarchar", sql_size: null, nullable: false, fk: null, fk_column: null},
+					{name: "EntityId", is_identity: false, sql_type: "nvarchar", sql_size: 250, nullable: false, fk: "BaseEntity", fk_column: null},
+				],
+				"app": [
+					{name: "Id", is_identity: true, sql_type: "int", sql_size: null, nullable: false, fk: null, fk_column: null},
+					{name: "ApiToken", is_identity: false, sql_type: "nvarchar", sql_size: null, nullable: false, fk: null, fk_column: null},
+					{name: "EntityId", is_identity: false, sql_type: "nvarchar", sql_size: 250, nullable: false, fk: "BaseEntity", fk_column: null},
+				],
+				"service": [
+					{name: "Id", is_identity: true, sql_type: "int", sql_size: null, nullable: false, fk: null, fk_column: null},
+					{name: "EntityId", is_identity: false, sql_type: "nvarchar", sql_size: 250, nullable: false, fk: "BaseEntity", fk_column: null},
+				],
+
+				"customerdo": [
+					{name: "Id", is_identity: true, sql_type: "int", sql_size: null, nullable: false},
+					{name: "UUID", is_identity: false, sql_type: "uniqueidentifier", sql_size: null, nullable: false},
+					{name: "Name", is_identity: false, sql_type: "nvarchar", sql_size: 250, nullable: false},
+					{name: "OwnerEmail", is_identity: false, sql_type: "nvarchar", sql_size: 250, nullable: false},
+					{name: "CreatedAt", is_identity: false, sql_type: "datetime", sql_size: null, nullable: true},
+					{name: "CreatedBy", is_identity: false, sql_type: "nvarchar", sql_size: 100, nullable: true},
+					{name: "ChangedAt", is_identity: false, sql_type: "datetime", sql_size: null, nullable: true},
+					{name: "ChangedBy", is_identity: false, sql_type: "nvarchar", sql_size: 100, nullable: true}
+				],
+				"baseentitydo": [
+					{name: "Id", data_type: "int", serializes: "baseentity"},
+					{name: "AccountBlocked", data_type: "nvarchar"},
+					{name: "CustomerId", data_type: "nvarchar"},
+				],
+				"userdo": [
+					{name: "Id", data_type: "int", extends: "baseentitydo"},
+					{name: "email", data_type: "nvarchar"},
+					{name: "password", data_type: "nvarchar"},
+					{name: "EntityId", data_type: "nvarchar"},
+				],
+				"appdo": [
+					{name: "Id", data_type: "int", extends: "baseentitydo"},
+					{name: "ApiToken", data_type: "nvarchar"},
+					{name: "EntityId", data_type: "nvarchar"},
+				],
+				"servicedo": [
+					{name: "Id", data_type: "int", extends: "baseentitydo"},
+					{name: "EntityId", data_type: "nvarchar"},
+				],
+
+			};
+
+			var svg = renderCanvas(WIDTH, HEIGHT);
+
+			Object.keys(entities).forEach((e) => {
+				renderEntity(svg, entities[e], e);
+			});
+
+			var graph = buildGraph(entities);
+
+			renderGraph(svg, graph);
+
+			var zoom = makeZoomable(svg);
+			recenterGraph(svg, graph, zoom);
+			
+
+		}
+
+		main();
+	</script>
+</body>
+</html>

@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html class="debug">
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="/vendor/bootstrap/css/bootstrap.min.css">
+<style>
+	* { box-sizing: border-box; }
+
+	body{
+		height: 100vh;
+		width: 100vw;
+		overflow: hidden;
+		white-space: nowrap;
+	}
+
+	.app-container{
+		height: 100%;
+		width: 100%;
+		background-color: #eee;
+		box-sizing: border-box;
+	}
+	
+	.app-content{
+		position: relative;
+	}
+
+	.app-content section{
+		display: inline-block;
+		margin: 0;
+		padding: 0;
+		height: 100%;
+		box-sizing: border-box;
+	}
+
+	.app-content .sidebar-wrapper{
+		position: absolute;
+		width: 200px;
+		background-color: darkgrey;
+	}
+
+	.app-content .main-wrapper{
+		position: absolute;
+		width: calc(100% - 200px);
+		margin-left: 200px;
+		overflow: hidden;
+		background-color: goldenrod;
+
+		transition: margin-left .5s, width .5s;
+	}
+
+	.app-content.closed .sidebar-wrapper{
+		
+	}
+	
+	.app-content.closed .main-wrapper{
+		width: calc(100%);
+		margin-left: 0px;
+	}
+
+	.question-card{
+		position: absolute;
+		width: 300px;
+		height: calc(100% - 200px);
+		margin-top: 100px;
+	}
+
+	.question-card:nth-child(1){
+		background-color: rgb(255, 127, 0) !important;
+		margin-left: calc(-300px + 30px);
+	}
+
+	.question-card:nth-child(2){
+		background-color: rgb(0, 127, 255) !important;
+		margin-left: calc(50% - calc(300px / 2))
+	}
+
+	.question-card:nth-child(3){
+		background-color: rgb(0, 255, 127) !important;
+		margin-left: calc(100% - 30px);
+	}
+
+
+		.debug .app-toolbar{
+			height: 50px;
+		}
+
+		.debug .app-content{
+			height: calc(100% - 50px - 20px);
+		}
+
+		.debug .app-footer{
+			height: 20px;
+		}
+
+		.debug body{
+			border: 2px green solid;
+		}
+
+		.debug .app-container{
+			border: 2px red solid;
+		}
+
+		.debug .app-toolbar{
+			background-color: limegreen;
+		}
+		.debug .app-content{
+			background-color: lightblue;
+		}
+		.debug .app-footer{
+			background-color: dodgerblue;
+		}
+
+		.debug .sidebar-wrapper{
+			border-right: 3px dashed orange;
+			border-bottom: 3px dashed orange;
+		}
+
+		.debug .main-wrapper{
+			border-right: 3px dotted black;
+			border-bottom: 3px dotted black;
+		}
+
+		.debug .question-card{
+			background-color: tomato;
+		}
+
+
+</style>
+</head>
+<body>
+	<script src="/vendor/bootstrap/js/bootstrap.min.js"></script>
+	<script src="https://d3js.org/d3.v4.min.js"></script>
+	<script src="/vendor/d3brush-util/d3brush-util.js"></script>
+	<script src="/js/script-35.js"></script>
+	
+	<div class="app-container">
+		<div class="app-toolbar">
+			<span>app-toolbar</span>
+		</div>
+		<div class="app-content">
+			<section class="sidebar-wrapper">
+				<ul class="sidebar">
+					<li>message 1</li>
+					<li>message 2</li>
+					<li>message 3</li>
+				</ul>
+			</section>
+			<section class="main-wrapper">
+				<div class="question-card">
+					card 1
+				</div>
+				<div class="question-card">
+					card 2
+				</div>
+				<div class="question-card">
+					card 3
+				</div>
+			</section>
+		</div>
+		<div class="app-footer">
+			<span>app-footer</span>
+		</div>
+	</div>
+
+<script>
+		(function(){
+			function open(){
+				document.body.querySelector(".app-content").className = "app-content";
+				setTimeout(close, 2000);
+			}
+
+			function close(){
+				document.body.querySelector(".app-content").className = "app-content closed";
+				setTimeout(open, 2000);
+			}
+
+			open()
+		}())
+</script>
+</body>
+</html>

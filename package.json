@@ -24,5 +24,8 @@
   "repository": {
     "type": "git",
     "url": "git://github.com/pjsousa/sandbox_d3js.git"
+  },
+  "dependencies": {
+    "js-yaml": "^3.13.1"
   }
 }

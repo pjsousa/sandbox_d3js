@@ -29,8 +29,10 @@
     "font-awesome": "~4.6.3",
     "bootstrap-social": "~4.8.0",
     "d3": "^4.11.0",
-    "handsontable": "^5.0.0",
-    "knockout": "knockoutjs#^3.4.2"
+    "handsontable": "^7.0.0",
+    "knockout": "knockoutjs#^3.4.2",
+    "d3brush-util": "ssh://git@git.pjsousa.com:10022/pedro/d3brush-util.git#2eca368c27a09c72ec2d62ae7ca5a1d8ca97fbc5",
+    "dagre-d3": "^0.6.3"
   },
   "resolutions": {
     "font-awesome": "~4.6.3"
