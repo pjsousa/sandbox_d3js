@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body{
+            background-color: rgb(40,41,35);
+        }
+
+        svg{
+            border: 2px solid red;
+        }
+
+        .control-axis .tick {
+            stroke-opacity: 0.7;
+            shape-rendering: crispEdges;
+        }
+        .control-axis path {
+            stroke-width: 2px;
+        }
+
+        .control-axis .tick line{
+        }
+
+        .grid .tick {
+            stroke-opacity: 0.7;
+            shape-rendering: crispEdges;
+        }
+
+        .grid .tick line{
+            stroke: white;
+            stroke-opacity: 0.1;
+            shape-rendering: crispEdges;
+        }
+
+        .grid path {
+            stroke-width: 0;
+        }
+
+        .plotArea path{
+            fill: none;
+            stroke-width: 2px;
+            stroke: rgb(166, 226, 44);
+        }
+    </style>
+</head>
+<body>
+    <p>
+        <button data-src="/dist/img/vertical.jpg">vertical</button>
+        <button data-src="/dist/img/horizontal.jpg">horizontal</button>
+        <button data-src="/dist/img/gray.png">big grid</button>
+        <button data-src="/dist/img/red.png">tiny grid 1</button>
+        <button data-src="/dist/img/green.png">tiny grid 2</button>
+    </p>
+
+    <svg>
+        <g class="img-canvas">
+            <g class="img-rotation">
+                <image />
+                <g class="points" transform="translate(0,0)">
+                </g>
+            </g>
+        </g>
+        <g class="event-graber">
+            <rect class="zoom-box" x=0 y=0 width=500 height=500 fill="rgba(255,0,0, 0.2)"></rect>
+        </g>
+    </svg>
+    
+    <p>
+        <span style="color: white">Angle</span>
+        <input class="angle" type="range" min=-360 max=360 step="1" value=0>
+    </p>
+    <p>
+        <span style="color: white">Scale</span>
+        <input class="scale" type="range" min=0.1 max=3 step="0.1" value=1>
+    </p>
+
+    <p>
+        <span style="color: white">Translate x</span>
+        <input class="tr-x" type="range" min=-1 max=1 step="0.01" value=0>
+    </p>
+
+    <p>
+        <span style="color: white">Translate y</span>
+        <input class="tr-y" type="range" min=-1 max=1 step="0.01" value=0>
+    </p>
+    
+    <script src="/vendor/d3/d3.min.js"></script>
+
+    <script>
+        var width = 500;
+        var height = 500;
+
+        var imgW, imgX, imgH, imgY;
+
+        var zoomTrans = {x:0, y:0, scale:1}
+        var xScale = null;
+        var yScale = null;
+        var xScaleZoomed = null;
+        var yScaleZoomed = null;
+        var angle = 0;
+        var globalZoom = null;
+
+        var data = [
+        ];
+        
+
+        function setDimension(){
+            d3.select("svg")
+                .attr("width", width)
+                .attr("height", height);
+        }
+
+        function bindButtons(){
+            Array.from(document.body.querySelectorAll("button"))
+                .forEach((e) => {
+                    e.addEventListener("click", changeImg);
+                })
+        }
+
+
+        function calcTransform(zoom_range, width, height){
+            // not used yet
+            var bounds = [
+                zoom_range[0].map((b)=>b*width),
+                zoom_range[1].map((b)=>b*height),
+            ];
+
+            var dx = bounds[0][1] - bounds[0][0]
+            var dy = bounds[1][1] - bounds[1][0]
+            var x = (bounds[0][0] + bounds[0][1]) / 2
+            var y = (bounds[1][0] + bounds[1][1]) / 2
+
+            scale = Math.max(1, Math.min(8, 1 / Math.max(dx / width, dy / height))),
+            translate = [width / 2 - scale * x, height / 2 - scale * y];
+
+            return {
+                translate: translate,
+                scale: scale
+            }
+        }
+
+        function bindEvents(){
+            var fires = 0;
+            d3.select("g.event-graber rect")
+                .on("mousemove", function(){
+                    var coords = d3.mouse(this);
+                    ++fires;
+
+                    if (fires % 5 == 0){
+                        scaled = [xScaleZoomed.invert(coords[0]), yScaleZoomed.invert(coords[1])];
+                        scaled[0] = Math.floor(scaled[0] * 100) / 100;
+                        scaled[1] = Math.floor(scaled[1] * 100) / 100;
+                        console.log(fires, coords, scaled);
+                    }
+                })
+                .on("mousedown", function(){
+                    var coords = d3.mouse(this)
+
+                    let x = (coords[0] - zoomTrans.x)/zoomTrans.scale;  
+                    let y = (coords[1] - zoomTrans.y)/zoomTrans.scale;
+                    data.push({ x, y, id: Math.random() });
+                    redraw();
+                });
+
+            d3.select("input.angle")
+                .on("change", function(){
+                    angle = parseFloat(this.value);
+                    console.log(angle);
+
+                    d3.select(".img-rotation")
+                        .attr("transform", `rotate(${angle} ${imgX + imgW / 2} ${imgY + imgH / 2})`)
+                })
+
+            d3.select("input.scale")
+                .on("change", function(){
+                    zoomTrans.scale = parseFloat(this.value);
+                    console.log(zoomTrans.scale);
+
+                    globalZoom.scaleTo(d3.select(".img-canvas"), zoomTrans.scale);
+
+                    xScaleZommed = zoom_transform.rescaleX(xScale);
+                    yScaleZommed = zoom_transform.rescaleY(yScale);
+
+                    d3.select(".img-canvas").attr("transform", `scale(${zoom_transform.k})`);
+
+                })
+
+            d3.select("input.tr-x")
+                .on("change", function(){
+                    zoomTrans.x = width * parseFloat(this.value);
+                    console.log(zoomTrans);
+
+                    globalZoom.translateTo(d3.select(".img-canvas"), zoomTrans.x, zoomTrans.y);
+
+                    xScaleZommed = zoom_transform.rescaleX(xScale);
+                    yScaleZommed = zoom_transform.rescaleY(yScale);
+
+                    d3.select(".img-canvas").attr("transform", `scale(${zoom_transform.k}) translate(${zoom_transform.x}, ${zoom_transform.y})`);
+                })
+
+            d3.select("input.tr-y")
+                .on("change", function(){
+                    zoomTrans.y = height * parseFloat(this.value);
+                    console.log(zoomTrans);
+
+                    var zoom_transform = d3.zoomIdentity
+                        .scale(zoomTrans.scale, zoomTrans.scale)
+                        .translate(zoomTrans.x, zoomTrans.y)
+
+                    xScaleZommed = zoom_transform.rescaleX(xScale);
+                    yScaleZommed = zoom_transform.rescaleY(yScale);
+
+                    d3.select(".img-canvas").attr("transform", `scale(${zoom_transform.k}) translate(${zoom_transform.x}, ${zoom_transform.y})`);
+                })
+        }
+
+        function makeZoom(){
+            globalZoom = d3.zoom()
+                .scaleExtent([1, 8])
+                .on("zoom", zoomed);
+            d3.select("g.event-graber rect").call(globalZoom);
+
+            function zoomed() {
+                var zoom_transform = d3.event.transform
+                zoom_transform.x = d3.min([zoom_transform.x, 0])
+                zoom_transform.y = d3.min([zoom_transform.y, 0])
+
+                zoom_transform.x = d3.max([zoom_transform.x, ((zoom_transform.k - 1) * width) * -1]);
+                zoom_transform.y = d3.max([zoom_transform.y, ((zoom_transform.k - 1) * height) * -1]);
+
+                zoomTrans.x = zoom_transform.x;
+                zoomTrans.y = zoom_transform.y;
+                zoomTrans.scale = zoom_transform.k;
+
+                xScaleZommed = zoom_transform.rescaleX(xScale);
+                yScaleZommed = zoom_transform.rescaleY(yScale);
+
+                d3.select(".img-canvas").attr("transform", zoom_transform);
+            }
+
+        }
+
+        function redraw() {
+          let grp = d3.select("g.points").selectAll('circle')
+            .data(data, d => d.id)
+            .attr('class', 'old')
+
+          grp.exit().remove(); // exit > remove >  g
+
+          let grpEnter = grp.enter()
+
+
+          let group = grpEnter
+          group.append('circle')
+            .attr('class', 'new')
+            .attr('r', 3)
+            .attr("fill", "rgb(127,255,0)")
+            .attr('cx', d => d.x).attr('cy', d => d.y)
+
+          grp = grpEnter.merge(grp);
+        }
+
+        function changeImg(evt){
+            var imgSrc = this.getAttribute("data-src");
+            getBase64ImageFromUrl(imgSrc)
+                .then(function(result){
+                    d3.select("svg .img-canvas image")
+                        .attr("xlink:href", result)
+
+                    var dimensions = getImageDimensions(result)
+                    .then(dimensions => {
+                        var ratio = dimensions.w / dimensions.h;
+                        imgW = null, 
+                        imgH = null;
+
+                        if (ratio > 1){ //landscape
+                            imgW = Math.min(dimensions.w, width);
+                            imgH = imgW / ratio;
+                        }
+                        else if(ratio < 1){ //portrait
+                            imgH = Math.min(dimensions.h, height);
+                            imgW = imgH * ratio;
+                        }
+                        else{ //square
+                            imgW = Math.min(dimensions.w, width);
+                            imgH = imgW;
+                        }
+
+                        imgX = (width - imgW) / 2;
+                        imgY = (height - imgH) / 2;
+
+                        xScale = d3.scaleLinear().range([imgX, imgX + imgW]).domain([0, dimensions.w])
+                        yScale = d3.scaleLinear().range([imgY, imgY + imgH]).domain([0, dimensions.h])
+                        xScaleZoomed = d3.scaleLinear().range([imgX, imgX + imgW]).domain([0, dimensions.w])
+                        yScaleZoomed = d3.scaleLinear().range([imgY, imgY + imgH]).domain([0, dimensions.h])
+
+                        console.log(dimensions, ratio);
+
+                        d3.select("svg .img-canvas image")
+                            .attr("height", imgH)
+                            .attr("width", imgW)
+                            .attr("transform", `translate(${imgX} ${imgY})`)
+                    });
+                })
+                .catch(err => console.error(err));
+        }
+
+        async function getBase64ImageFromUrl(imageUrl) {
+            var res = await fetch(imageUrl);
+            var blob = await res.blob();
+
+            return new Promise((resolve, reject) => {
+                var reader  = new FileReader();
+                reader.addEventListener("load", function () {
+                    resolve(reader.result);
+                }, false);
+
+                reader.onerror = () => {
+                    return reject(this);
+                };
+                reader.readAsDataURL(blob);
+            })
+        }
+
+        async function getImageDimensions(file) {
+            return new Promise (function (resolved, rejected) {
+                var i = new Image()
+                i.onload = function(){
+                    resolved({w: i.width, h: i.height})
+                };
+                i.src = file
+            })
+        }
+
+        function main()
+        {
+            bindButtons();
+            bindEvents();
+            makeZoom();
+            setDimension();
+            redraw();
+        }
+
+        main();
+
+
+    </script>
+</body>
+</html>

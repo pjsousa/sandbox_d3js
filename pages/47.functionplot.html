@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+body{
+  background-color: rgb(40,41,35);
+}
+
+svg{
+  border: 2px solid black;
+}
+
+.control-axis .tick {
+    stroke-opacity: 0.7;
+    shape-rendering: crispEdges;
+}
+.control-axis path {
+    stroke-width: 2px;
+}
+
+.control-axis .tick line{
+}
+
+.grid .tick {
+    stroke-opacity: 0.7;
+    shape-rendering: crispEdges;
+}
+
+.grid .tick line{
+    stroke: white;
+    stroke-opacity: 0.1;
+    shape-rendering: crispEdges;
+}
+
+.grid path {
+    stroke-width: 0;
+}
+
+.plotArea path{
+  fill: none;
+  stroke-width: 2px;
+  stroke: rgb(166, 226, 44);
+}
+
+
+</style>
+</head>
+<body>
+<script src="/vendor/d3/d3.min.js"></script>
+<script>
+  var WIDTH = 500;
+  var HEIGHT = 500;
+  var N_POINTS = 20;
+  var N_SECTIONS = 7;
+  var LEN_OFFSET = 100;
+  var LEN_CUTOFF = 100;
+
+  line = function(m, b, x){ return m*x+b; }
+  sin = function(x){ return Math.sin(x) }
+  cos = function(x){ return Math.cos(x) }
+
+  var xValues = d3.range(-1, 1.1, (1 - (-1)) / N_POINTS);
+  //var yValues = xValues.map(line.bind(null, 1, 0))
+  //var yValues = xValues.map(sin)
+  //var yValues = xValues.map(cos)
+  var yValues = xValues.map(d3.randomUniform(-1,1));
+  //var yValues = xValues.map((x) => 2*x**2 - 1);
+
+  var points = xValues.map((d,i) => [xValues[i], yValues[i]]);
+
+
+  xScale = d3.scaleLinear()
+    .range([50, 450])
+    .domain([-1, 1]);
+
+  yScale = d3.scaleLinear()
+    .range([450, 50])
+    .domain([-1, 1]);
+
+  x0Axis = d3.axisTop(xScale)
+    .ticks(5)
+  x1Axis = d3.axisBottom(xScale)
+    .ticks(5)
+  y0Axis = d3.axisLeft(xScale)
+    .ticks(5)
+  y1Axis = d3.axisRight(xScale)
+    .ticks(5)
+
+  gridV = d3.axisBottom(xScale)
+    .ticks(20)
+    .tickSize(-(450-50), 0, 0)
+    .tickFormat("")
+
+  gridH = d3.axisLeft(xScale)
+    .ticks(20)
+    .tickSize(-(450-50), 0, 0)
+    .tickFormat("")
+
+  var valueline = d3.line()
+      .x(function(d) { return xScale(d[0]); })
+      .y(function(d) { return yScale(d[1]); });
+
+  var svg = d3.select("body").append("svg")
+    .attr("width", WIDTH)
+    .attr("height", HEIGHT)
+
+  var controlsArea = svg.append("g")
+    .attr("class", "controls");
+
+  var plotArea = svg.append("g")
+    .attr("class", "plotArea")
+
+  initControls();
+  renderLine();
+  renderDots();
+  splitLine();
+
+  // var state_text = createDebugArea(0, 60, "start", "before-edge", "Brush: x,x")
+
+  function initControls(){
+    controlsArea.append("g")
+      .attr("class", "control-axis")
+      .attr("transform", `translate(0,${xScale.range()[0]})`)
+      .call(x0Axis);
+
+    controlsArea.append("g")
+      .attr("class", "control-axis")
+      .attr("transform", `translate(0,${xScale.range()[1]})`)
+      .call(x1Axis);
+
+    controlsArea.append("g")
+      .attr("class", "control-axis")
+      .attr("transform", `translate(${xScale.range()[0]},0)`)
+      .call(y0Axis);
+
+    controlsArea.append("g")
+      .attr("class", "control-axis")
+      .attr("transform", `translate(${xScale.range()[1]},0)`)
+      .call(y1Axis);
+
+    controlsArea.append("g")
+      .attr("class", "grid")
+      .attr("transform", `translate(${xScale.range()[0]},0)`)
+      .call(gridH);
+
+    controlsArea.append("g")
+      .attr("class", "grid")
+      .attr("transform", `translate(0,${xScale.range()[1]})`)
+      .call(gridV);
+  };
+
+  function renderLine(){    
+    plotArea.selectAll("path.datum")
+      .data([0])
+      .enter()
+      .append("path")
+        .attr("class", "datum")
+        .attr("d", valueline(points));
+
+      var line = plotArea.selectAll("path.datum")
+
+
+      var length = line.node().getTotalLength();
+      var start = 1/7;
+      var end = 3/7;
+      var middle;
+
+      var v_start = length * start;
+      var v_end = length * end;
+      var v_middle = v_end - v_start;
+
+
+      console.log("length", length);
+      console.log("start", v_start)
+      console.log("middle", v_middle)
+      console.log("end", v_end)
+
+
+      line.attr("stroke-dasharray", `0 0 0 ${length}`)
+           .attr("stroke-dashoffset", 0)
+           .transition()
+             .duration(4000)
+             .ease(d3.easeLinear)
+             .attr("stroke-dasharray", `0 ${v_start} ${v_middle} ${length}`)
+             .attr("stroke-dashoffset", 0)
+  }
+
+  function renderDots(){
+    plotArea.selectAll("circle.datum")
+      .data(points)
+      .enter()
+      .append("circle")
+        .attr("class", "datum")
+        .attr("cx", (d) => xScale(d[0]))
+        .attr("cy", (d) => yScale(d[1]))
+        .attr("r", 1)
+        .attr("fill", "none")
+        .attr("stroke", "rgb(248,35,114)")
+        .attr("stroke-width", "1px")
+  }
+
+  function splitLine(){
+    var line = plotArea.selectAll("path.datum").node()
+    var length = line.getTotalLength();
+    var length_section = d3.range(0, length, length/N_SECTIONS);
+
+    var debug_points = length_section.map((d) => {p=line.getPointAtLength(d); return [p.x, p.y]});
+    debug_points.push([line.getPointAtLength(length).x, line.getPointAtLength(length).y])
+
+    plotArea.selectAll("circle.datum-debug")
+      .data(debug_points)
+      .enter()
+      .append("circle")
+        .attr("class", "datum-debug")
+        .attr("cx", (d) => d[0])
+        .attr("cy", (d) => d[1])
+        .attr("r", 5)
+        .attr("fill", "none")
+        .attr("stroke", "rgb(255,127,0)")
+        .attr("stroke-width", "1px")
+  }
+
+  function debug(text_area, text){
+    text_area.html(text);
+  }
+
+  function createDebugArea(x,y,anchor,baseline, caption){
+    var text_area = svg.append("text")
+      .attr("class", "text-area")
+      .attr("x", x).attr("y", y)
+      .attr("text-anchor", anchor)
+      .style("font-size", 20)
+      .attr("alignment-baseline", baseline)
+      .style("pointer-events", "none")
+      .html(caption)
+
+    return text_area;
+  }
+
+  function zip(arrays) {
+      return arrays[0].map(function(_,i){
+          return arrays.map(function(array){return array[i]})
+      });
+  }
+
+</script>
+</body>
+</html>

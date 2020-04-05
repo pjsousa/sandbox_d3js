@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body{
+            background-color: rgb(40,41,35);
+        }
+
+        svg{
+            border: 2px solid red;
+        }
+
+        .control-axis .tick {
+            stroke-opacity: 0.7;
+            shape-rendering: crispEdges;
+        }
+        .control-axis path {
+            stroke-width: 2px;
+        }
+
+        .control-axis .tick line{
+        }
+
+        .grid .tick {
+            stroke-opacity: 0.7;
+            shape-rendering: crispEdges;
+        }
+
+        .grid .tick line{
+            stroke: white;
+            stroke-opacity: 0.1;
+            shape-rendering: crispEdges;
+        }
+
+        .grid path {
+            stroke-width: 0;
+        }
+
+        .plotArea path{
+            fill: none;
+            stroke-width: 2px;
+            stroke: rgb(166, 226, 44);
+        }
+    </style>
+</head>
+<body>
+    <script src="/vendor/d3/d3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/6.6.1/math.min.js" integrity="sha256-GRICDUAZi4ixXD2USKabeCWS1tT0noAuMFauMmXEmHs=" crossorigin="anonymous"></script>
+
+    <script>
+        function Transform2D(){
+            this.t_pipeline = [];
+            this.inv_pipeline = [];
+            this.t_matrix = null;
+            this.inv_matrix = null;
+        }
+
+        Transform2D.prototype.transform = function(point){
+            var _resized = false;
+            var P = math.matrix(point).reshape([3,1]);
+
+            if (this.t_matrix == null){
+                this.__build_transform()
+            }
+
+            console.info("T", this.t_matrix.size())
+            console.info("P", P.size())
+            var r = math.multiply(this.t_matrix, P);
+
+            console.info("R", r.size())
+
+            if (_resized){
+                r = r.subset(math.index(math.range(0, point.length), math.range(0,2)))
+            }
+
+            return math.squeeze(r._data);
+        }
+
+        Transform2D.prototype.invert = function(point){
+            var _resized = false;
+            var P = math.matrix(point);
+            var _s = P.size();
+
+            if (this.inv_matrix == null){
+                this.__build_transform()
+            }
+
+            var r = math.multiply(this.inv_matrix, math.transpose(P));
+
+            if (_resized){
+                r = r.subset(math.index(math.range(0, _s[0]), math.range(0,2)))
+            }
+
+            return math.squeeze(r._data);
+        }
+
+        Transform2D.prototype.t = function(points){
+            
+            return points.map(p => this.transform([p[0], p[1], 1]));
+        }
+
+        Transform2D.prototype.i = function(points){
+            
+            return points.map(p => this.invert([p[0], p[1], 1]));
+        }
+
+        Transform2D.prototype.translate = function(tx, ty){
+            var M = [[1, 0, tx],
+                     [0, 1, ty],
+                     [0, 0, 1]];
+
+            this.t_pipeline.push(math.matrix(M));
+
+            M = [[1, 0, -tx],
+                 [0, 1, -ty],
+                 [0, 0, 1]];
+
+            this.inv_pipeline.push(math.matrix(M));
+
+            this.t_matrix = null;
+            this.inv_matrix = null;
+
+            return this;
+        }
+
+        Transform2D.prototype.rotate = function(angle, center){
+            if (center){
+                this.translate(-center[0], -center[1]);
+            }
+
+            var c = math.cos(angle * (math.pi/180));
+            var s = math.sin(angle * (math.pi/180));
+
+            var M = [[c, -s, 0],
+                    [s, c, 0],
+                    [0, 0, 1]];
+
+            this.t_pipeline.push(M);
+
+            
+            var M = [[c, s, 0],
+                    [-s, c, 0],
+                    [0, 0, 1]];
+            this.inv_pipeline.push(M);
+
+            if(center){
+                this.translate(center[0], center[1]);
+            }
+
+            this.t_matrix = null;
+            this.inv_matrix = null;
+
+            return this;
+        }
+
+        Transform2D.prototype.scale = function(Sx, Sy){
+            var M = [[Sx, 0, 0],
+                    [0, Sy, 0],
+                    [0, 0, 1]];
+
+            this.t_pipeline.push(M);
+
+            M = [[1/Sx, 0, 0],
+                 [0, 1/Sy, 0],
+                 [0, 0, 1]];
+            this.inv_pipeline.push(M);
+
+            this.t_matrix = null;
+            this.inv_matrix = null;
+
+            return this;
+        }
+
+        Transform2D.prototype.__build_transform = function(){
+            var curr = math.matrix(math.identity([3,3]));
+
+            for(var i = 0; i < this.t_pipeline.length; i++){
+                curr = math.multiply(curr, this.t_pipeline[i])
+            }
+
+            this.t_matrix = math.matrix(curr);
+
+            curr = [[1,0,0],
+                    [0,1,0],
+                    [0,0,1]];
+
+            for (var i = this.inv_pipeline.length - 1; i >= 0; i--) {
+                curr = math.multiply(curr, this.inv_pipeline[i])
+            }
+
+            this.inv_matrix = math.matrix(curr);
+        }
+
+
+        var vis = d3.select("body").append("svg")
+                 .attr("class", "sandbox")
+                 .attr("width", 500)
+                 .attr("height", 500)
+
+        var mirr = d3.select("body").append("svg")
+                 .attr("class", "mirr")
+                 .attr("width", 500)
+                 .attr("height", 500)
+
+        scaleX = d3.scaleLinear()
+                .domain([-50,50])
+                .range([0,500]);
+
+        scaleY = d3.scaleLinear()
+                .domain([-50,50])
+                .range([500, 0]);
+
+        function drawPolygon(points, s){
+            s = s || vis;
+
+            drawPolygon.__count += 1;
+
+            var r = math.randomInt(0,255);
+            var g = math.randomInt(0,255);
+            var b = math.randomInt(0,255);
+
+            s.append("polygon")
+                .attr("points",function(d) { 
+                    return points.map(function(d) {
+                        return [scaleX(d[0]),scaleY(d[1])].join(",");
+                    }).join(" ");
+                })
+                .attr("stroke",`rgb(${r},${g},${b})`)
+                .attr("fill",`rgba(${r},${g},${b}, 0.25)`)
+                .attr("stroke-width", 1);
+
+            s.append("text")
+                .attr("x", scaleX(points[0][0]))
+                .attr("y", scaleY(points[0][1]))
+                .attr("fill", "white")
+                .attr("text-anchor", "end")
+                .attr("font-size", "14px")
+                .attr("dy", "10px")
+                .attr("dx", "-2px")
+
+                .html(drawPolygon.__count)
+        }
+
+        drawPolygon.__count = 0;
+
+        
+        poly = [[-10, 10],
+                [10, 10],
+                [10, -10],
+                [-10,-10]];
+
+        drawPolygon(poly)
+
+        var t = new Transform2D();
+
+        t.translate(30, 30);
+        drawPolygon(t.t(poly));
+
+        t.scale(.5,.5)
+        drawPolygon(t.t(poly));
+
+        t.translate(-50, 0);
+        t.rotate(30)
+        drawPolygon(t.t(poly));
+        t.rotate(30)
+        drawPolygon(t.t(poly));
+        t.rotate(30)
+        drawPolygon(t.t(poly));
+        t.rotate(30)
+        drawPolygon(t.t(poly));
+        t.rotate(30)
+        drawPolygon(t.t(poly));
+        t.rotate(30)
+        drawPolygon(t.t(poly));
+
+        t.translate(50, 0);
+        t.rotate(30)
+        drawPolygon(t.t(poly));
+        t.rotate(30)
+        drawPolygon(t.t(poly));
+        t.rotate(30)
+        drawPolygon(t.t(poly));
+        t.rotate(30)
+        drawPolygon(t.t(poly));
+        t.rotate(30)
+        drawPolygon(t.t(poly));
+        t.rotate(30)
+        drawPolygon(t.t(poly));
+
+        s = t.t(poly)
+        drawPolygon(s, mirr);
+
+        drawPolygon(t.i(s), mirr);
+
+        
+
+
+
+
+    </script>
+</body>
+</html>

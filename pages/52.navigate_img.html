@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body{
+            background-color: rgb(40,41,35);
+        }
+
+        svg{
+            border: 2px solid red;
+        }
+
+        .control-axis .tick {
+            stroke-opacity: 0.7;
+            shape-rendering: crispEdges;
+        }
+        .control-axis path {
+            stroke-width: 2px;
+        }
+
+        .control-axis .tick line{
+        }
+
+        .grid .tick {
+            stroke-opacity: 0.7;
+            shape-rendering: crispEdges;
+        }
+
+        .grid .tick line{
+            stroke: white;
+            stroke-opacity: 0.1;
+            shape-rendering: crispEdges;
+        }
+
+        .grid path {
+            stroke-width: 0;
+        }
+
+        .plotArea path{
+            fill: none;
+            stroke-width: 2px;
+            stroke: rgb(166, 226, 44);
+        }
+    </style>
+</head>
+<body>
+    <p>
+        <button data-src="/dist/img/vertical.jpg">vertical</button>
+        <button data-src="/dist/img/horizontal.jpg">horizontal</button>
+        <button data-src="/dist/img/gray.png">big grid</button>
+        <button data-src="/dist/img/red.png">tiny grid 1</button>
+        <button data-src="/dist/img/green.png">tiny grid 2</button>
+    </p>
+
+    <svg class="vis">
+        <g class="img-canvas">
+            <g class="img-rotation">
+                <image />
+                <g class="points" transform="translate(0,0)">
+                </g>
+            </g>
+        </g>
+    </svg>
+
+    <svg class="world">
+        <g class="img-canvas">
+            <g class="img-rotation">
+                <image />
+                <g class="points" transform="translate(0,0)">
+                </g>
+            </g>
+        </g>
+        <g class="viewport-box">
+            <polygon />
+            <text />
+        </g>
+    </svg>
+
+    <p>
+        <span style="color: white">Translate x</span>
+        <input class="tr-x" type="range" min=-250 max=250 step="1" value=0>
+        <span class="tr-x" style="color: white">0</span>
+
+    </p>
+    <p>
+        <span style="color: white">Translate y</span>
+        <input class="tr-y" type="range" min=-250 max=250 step="1" value=0>
+        <span class="tr-y" style="color: white">0</span>
+    </p>
+    <p>
+        <span style="color: white">Angle</span>
+        <input class="angle" type="range" min=-360 max=360 step="5" value=0>
+        <span class="angle" style="color: white">0</span>
+    </p>
+    <p>
+        <span style="color: white">Scale</span>
+        <input class="scale" type="range" min=1 max=10 step="0.01" value=1>
+        <span class="scale" style="color: white">1</span>
+    </p>
+
+    <p class="transform-debug"></p>
+
+    <textarea id="mtw" name="" id="" cols="20" rows="4"></textarea>
+    <textarea id="wtm" name="" id="" cols="20" rows="4"></textarea>
+
+    <script src="/vendor/d3/d3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/6.6.1/math.min.js" integrity="sha256-GRICDUAZi4ixXD2USKabeCWS1tT0noAuMFauMmXEmHs=" crossorigin="anonymous"></script>
+
+    <script>
+        function Transform2D(){
+            this.t_pipeline = [];
+            this.inv_pipeline = [];
+            this.t_matrix = null;
+            this.inv_matrix = null;
+        }
+
+        var T2D = Transform2D;
+
+        Transform2D.prototype.transform = function(point){
+            var _resized = false;
+            var P = math.matrix(point).reshape([3,1]);
+
+            if (this.t_matrix == null){
+                this.__build_transform()
+            }
+
+            var r = math.multiply(this.t_matrix, P);
+
+            if (_resized){
+                r = r.subset(math.index(math.range(0, point.length), math.range(0,2)))
+            }
+
+            return math.squeeze(r._data);
+        }
+
+        Transform2D.prototype.invert = function(point){
+            var _resized = false;
+            var P = math.matrix(point);
+            var _s = P.size();
+
+            if (this.inv_matrix == null){
+                this.__build_transform()
+            }
+
+            var r = math.multiply(this.inv_matrix, math.transpose(P));
+
+            if (_resized){
+                r = r.subset(math.index(math.range(0, _s[0]), math.range(0,2)))
+            }
+
+            return math.squeeze(r._data);
+        }
+
+        Transform2D.prototype.t = function(points){
+            
+            return points.map(p => this.transform([p[0], p[1], 1]));
+        }
+
+        Transform2D.prototype.i = function(points){
+            
+            return points.map(p => this.invert([p[0], p[1], 1]));
+        }
+
+        Transform2D.prototype.translate = function(tx, ty){
+            var M = [[1, 0, tx],
+                     [0, 1, ty],
+                     [0, 0, 1]];
+
+            this.t_pipeline.push(math.matrix(M));
+
+            M = [[1, 0, -tx],
+                 [0, 1, -ty],
+                 [0, 0, 1]];
+
+            this.inv_pipeline.push(math.matrix(M));
+
+            this.t_matrix = null;
+            this.inv_matrix = null;
+
+            return this;
+        }
+
+        Transform2D.prototype.rotate = function(angle, center){
+            if (center){
+                this.translate(-center[0], -center[1]);
+            }
+
+            var c = math.cos(angle * (math.pi/180));
+            var s = math.sin(angle * (math.pi/180));
+
+            var M = [[c, -s, 0],
+                    [s, c, 0],
+                    [0, 0, 1]];
+
+            this.t_pipeline.push(M);
+
+            
+            var M = [[c, s, 0],
+                    [-s, c, 0],
+                    [0, 0, 1]];
+            this.inv_pipeline.push(M);
+
+            if(center){
+                this.translate(center[0], center[1]);
+            }
+
+            this.t_matrix = null;
+            this.inv_matrix = null;
+
+            return this;
+        }
+
+        Transform2D.prototype.scale = function(Sx, Sy, center){
+            if (center){
+                this.translate(-center[0], -center[1]);
+            }
+
+            var M = [[Sx, 0, 0],
+                    [0, Sy, 0],
+                    [0, 0, 1]];
+
+            this.t_pipeline.push(M);
+
+            M = [[1/Sx, 0, 0],
+                 [0, 1/Sy, 0],
+                 [0, 0, 1]];
+            this.inv_pipeline.push(M);
+
+            if(center){
+                this.translate(center[0], center[1]);
+            }
+
+            this.t_matrix = null;
+            this.inv_matrix = null;
+
+            return this;
+        }
+
+        Transform2D.prototype.__build_transform = function(){
+            var curr = math.matrix(math.identity([3,3]));
+
+            for(var i = 0; i < this.t_pipeline.length; i++){
+                curr = math.multiply(curr, this.t_pipeline[i])
+            }
+
+            this.t_matrix = math.matrix(curr);
+
+            curr = [[1,0,0],
+                    [0,1,0],
+                    [0,0,1]];
+
+            for (var i = this.inv_pipeline.length - 1; i >= 0; i--) {
+                curr = math.multiply(curr, this.inv_pipeline[i])
+            }
+
+            this.inv_matrix = math.matrix(curr);
+        }
+
+        var width = 250;
+        var height = 250;
+        var imgW = null;
+        var imgH = null;
+        var imgX = null;
+        var imgY = null;
+        var T = null;
+        var imgDimensions = null;
+
+        var xScale = null;
+        var yScale = null;
+
+        var vis = d3.select("svg.vis")
+                 .attr("width", 250)
+                 .attr("height", 250)
+
+        var wrld = d3.select("svg.world")
+                 .attr("width", 250)
+                 .attr("height", 250)
+
+
+        scaleX = d3.scaleLinear()
+                .domain([-50,50])
+                .range([0,250]);
+
+        scaleY = d3.scaleLinear()
+                .domain([-50,50])
+                .range([250, 0]);
+
+
+        function changeImg(evt){
+            var imgSrc = this.getAttribute("data-src");
+            getBase64ImageFromUrl(imgSrc)
+                .then(function(result){
+                    d3.selectAll("svg .img-canvas image")
+                        .attr("xlink:href", result)
+
+                    dimensions = getImageDimensions(result)
+                    .then(dimensions => {
+                        imgDimensions = dimensions;
+
+                        var ratio = dimensions.w / dimensions.h;
+                        imgW = null, 
+                        imgH = null;
+
+                        if (ratio > 1){ //landscape
+                            imgW = Math.min(dimensions.w, width);
+                            imgH = imgW / ratio;
+                        }
+                        else if(ratio < 1){ //portrait
+                            imgH = Math.min(dimensions.h, height);
+                            imgW = imgH * ratio;
+                        }
+                        else{ //square
+                            imgW = Math.min(dimensions.w, width);
+                            imgH = imgW;
+                        }
+
+                        imgX = (width - imgW) / 2;
+                        imgY = (height - imgH) / 2;
+
+                        xScale = d3.scaleLinear().range([imgX, imgX + imgW]).domain([0, dimensions.w])
+                        yScale = d3.scaleLinear().range([imgY, imgY + imgH]).domain([0, dimensions.h])
+
+                        d3.selectAll("svg .img-canvas image")
+                            .attr("height", imgH)
+                            .attr("width", imgW)
+                            .attr("transform", `translate(${imgX} ${imgY})`)
+
+                        T = new T2D();
+                        placeViewportBox();
+                    });
+                })
+                .catch(err => console.error(err));
+        }
+
+        async function getBase64ImageFromUrl(imageUrl) {
+            var res = await fetch(imageUrl);
+            var blob = await res.blob();
+
+            return new Promise((resolve, reject) => {
+                var reader  = new FileReader();
+                reader.addEventListener("load", function () {
+                    resolve(reader.result);
+                }, false);
+
+                reader.onerror = () => {
+                    return reject(this);
+                };
+                reader.readAsDataURL(blob);
+            })
+        }
+
+        async function getImageDimensions(file) {
+            return new Promise (function (resolved, rejected) {
+                var i = new Image()
+                i.onload = function(){
+                    resolved({w: i.width, h: i.height})
+                };
+                i.src = file
+            })
+        }
+
+        function drawPolygon(points, s){
+            s = s || vis;
+
+            drawPolygon.__count += 1;
+
+            s.select("g.viewport-box polygon")
+                .attr("points",function(d) { 
+                    return points.map(function(d) {
+                        return [xScale(d[0]),yScale(d[1])].join(",");
+                    }).join(" ");
+                })
+                .attr("fill", "rgba(0,255,0, 0.1)")
+                .attr("stroke", "rgb(80,200,120)")
+                .attr("stroke-width", "3px")
+
+            s.select("g.viewport-box text")
+                .attr("x", xScale(points[0][0]))
+                .attr("y", yScale(points[0][1]))
+                .attr("fill", "white")
+                .attr("text-anchor", "end")
+                .attr("font-size", "14px")
+                .attr("dy", "10px")
+                .attr("dx", "-2px")
+                .html(drawPolygon.__count)
+        }
+        drawPolygon.__count = 0;
+
+        function drawPoint(point, s){
+            s = s || vis;
+
+            var c = s === vis ? "goldenrod" : "dodgerblue";
+
+            s.append("circle")
+                .attr("cx", scaleX(point[0]))
+                .attr("cy", scaleY(point[1]))
+                .attr("r", "3px")
+                .attr("stroke", "rgb(200,200,200)")
+                .attr("fill", c)
+                .attr("stroke-width", 1);
+        }
+
+        function modelToWorld(coords, modelScaleX, modelScaleY, T){
+            var coords_d = [modelScaleX.invert(coords[0]), modelScaleY.invert(coords[1])];
+            var coords_t = T.t([coords_d]);
+
+            return coords_t[0];
+        }
+
+        function worldToModel(coords, worldScaleX, worldScaleY, T){
+            console.log(coords)
+            var coords_d = [worldScaleX.invert(coords[0]), worldScaleY.invert(coords[1])]
+            var coords_t = T.i([coords_d]);
+
+            return coords_t[0];
+        }
+
+        function bindButtons(){
+            Array.from(document.body.querySelectorAll("button"))
+                .forEach((e) => {
+                    e.addEventListener("click", changeImg);
+                })
+        }
+
+        function bindInputs(){
+            d3.selectAll("input")
+                .on("change", function(){
+                    this.nextElementSibling.innerHTML = this.value;
+                    var tr_x = parseFloat(d3.select("input.tr-x").node().value);
+                    tr_x = tr_x * imgDimensions.w / 250;
+                    var tr_y = parseFloat(d3.select("input.tr-y").node().value);
+                    tr_y = tr_y * imgDimensions.w / 250;
+                    
+
+                    var angle = parseFloat(d3.select("input.angle").node().value);
+                    var scale = 1 / parseFloat(d3.select("input.scale").node().value);
+
+
+                    T = new T2D()
+                        .translate(tr_x, tr_y)
+                        .scale(scale, scale, [-imgDimensions.w/2, -imgDimensions.h/2])
+                        .rotate(angle, [-imgDimensions.w/2, -imgDimensions.h/2])
+
+                    placeViewportBox();
+                });
+        }
+
+        function debug(tr_x, tr_y, angle, scale){
+            d3.select("textarea#mtw")
+                .style("font-size", "large")
+                .html(T.t_matrix._data.map(e => e.map(v=> Math.floor(v * 100) / 100).join("    ")).join("\n"))
+
+            d3.select("textarea#wtm")
+                .style("font-size", "large")
+                .html(T.inv_matrix._data.map(e => e.map(v=> Math.floor(v * 100) / 100).join("    ")).join("\n"))
+        }
+
+        function placeViewportBox(){
+            var points = [[0, 0],
+                          [imgDimensions.w, 0],
+                          [imgDimensions.w, imgDimensions.h],
+                          [0, imgDimensions.h]];
+            points_t = T.t(points);
+            drawPolygon(points_t, wrld);
+            debug()
+        }
+
+
+        function main()
+        {
+            bindButtons();
+            bindInputs();
+        }
+
+        main();
+
+
+
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <script src="https://d3js.org/d3.v4.js"></script>
+  <style>
+    body {margin: 0 }
+    svg { background-color: #86B2EB; }
+    svg circle.old { fill: green; }
+    svg circle.new { fill: blue;  }
+  </style>
+</head>
+
+<body>
+  <svg width="960" height="500"></svg>
+  <div>use mousewheel to zoom, and then click on blue square to place new circle</div>
+
+  <script>
+    let svg = d3.select('svg'),
+      container = svg.append('g'),
+      data = [
+        { x: 50, y: 110, id: 100 },
+        { x: 100, y: 100, id: 101 },
+        { x: 650, y: 410, id: 102 }
+      ];
+    
+    let zoomTrans = {x:0, y:0, scale:1}
+
+    function init() {
+
+      let zoom = d3.zoom()
+        .scaleExtent([0.25, 2.25])
+        .on("zoom", () => {
+          zoomTrans.x = d3.event.transform.x;
+          zoomTrans.y = d3.event.transform.y;
+          zoomTrans.scale = d3.event.transform.k;
+          container.attr("transform", d3.event.transform);
+        });
+
+      svg.call(zoom)
+        .on("dblclick.zoom", null)
+
+      svg.on('click', d => {
+        let x = (d3.event.x - zoomTrans.x)/zoomTrans.scale;
+        let y = (d3.event.y - zoomTrans.y)/zoomTrans.scale;
+        data.push({ x, y, id: Math.random() });
+        redraw();
+      });
+
+    }
+
+    function redraw() {
+      let grp = container.selectAll('circle')
+        .data(data, d => d.id)
+        .attr('class', 'old')
+
+      grp.exit().remove(); // exit > remove >  g
+
+      let grpEnter = grp.enter()
+
+
+      let group = grpEnter
+      group.append('circle')
+        .attr('class', 'new')
+        .attr('r', 15)
+        .attr('cx', d => d.x).attr('cy', d => d.y)
+
+      grp = grpEnter.merge(grp);
+    }
+
+    init();
+    redraw();
+  </script>
+
+</body>
+
+</html>
