@@ -103,6 +103,28 @@ gulp.task('copy', function() {
     gulp.src(['node_modules/js-yaml/dist/*'])
         .pipe(gulp.dest('vendor/js-yaml')) 
 
+    gulp.src(['node_modules/bezier-js/bezier.js'])
+        .pipe(gulp.dest('vendor/bezierjs/')) 
+
+
+    gulp.src(['node_modules/codemirror/lib/*js'])
+        .pipe(gulp.dest('vendor/codemirror/js'))
+
+    gulp.src(['node_modules/codemirror/lib/*css'])
+        .pipe(gulp.dest('vendor/codemirror/css'))
+
+    gulp.src(['node_modules/codemirror/theme/**/*'])
+        .pipe(gulp.dest('vendor/codemirror/css/theme'))
+
+    gulp.src(['node_modules/codemirror/theme/**/*'])
+        .pipe(gulp.dest('vendor/codemirror/css'))
+
+    gulp.src(['node_modules/codemirror/mode/**/*'])
+        .pipe(gulp.dest('vendor/codemirror/mode'))
+
+    gulp.src(['node_modules/codemirror/addon/**/*'])
+        .pipe(gulp.dest('vendor/codemirror/addon'))
+
 
 
 })

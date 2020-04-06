@@ -26,6 +26,8 @@
     "url": "git://github.com/pjsousa/sandbox_d3js.git"
   },
   "dependencies": {
+    "bezier-js": "^2.4.3",
+    "codemirror": "^5.48.4",
     "js-yaml": "^3.13.1"
   }
 }

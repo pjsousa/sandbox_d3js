@@ -103,11 +103,17 @@
 
     <textarea id="mtw" name="" id="" cols="20" rows="4"></textarea>
     <textarea id="wtm" name="" id="" cols="20" rows="4"></textarea>
+    <textarea id="debug" name="" id="" cols="20" rows="7"></textarea>
+    
 
     <script src="/vendor/d3/d3.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/6.6.1/math.min.js" integrity="sha256-GRICDUAZi4ixXD2USKabeCWS1tT0noAuMFauMmXEmHs=" crossorigin="anonymous"></script>
 
     <script>
+
+        var DEG_RAD_FACTOR = math.pi / 180;
+        var TWO_PI = 2 * math.pi;
+
         function Transform2D(){
             this.t_pipeline = [];
             this.inv_pipeline = [];
@@ -153,8 +159,8 @@
         }
 
         Transform2D.prototype.t = function(points){
-            
-            return points.map(p => this.transform([p[0], p[1], 1]));
+            var r = points.map(p => this.transform([p[0], p[1], 1]));
+            return r;
         }
 
         Transform2D.prototype.i = function(points){
@@ -186,8 +192,8 @@
                 this.translate(-center[0], -center[1]);
             }
 
-            var c = math.cos(angle * (math.pi/180));
-            var s = math.sin(angle * (math.pi/180));
+            var c = math.cos(angle * DEG_RAD_FACTOR);
+            var s = math.sin(angle * DEG_RAD_FACTOR);
 
             var M = [[c, -s, 0],
                     [s, c, 0],
@@ -255,6 +261,106 @@
             }
 
             this.inv_matrix = math.matrix(curr);
+        }
+
+        Transform2D.prototype.t_xAxis = function(){
+            var v = [];
+            v[0] = this.t_matrix._data[0][0];
+            v[1] = this.t_matrix._data[1][0];
+            return v;
+        }
+
+        Transform2D.prototype.t_yAxis = function(){
+            var v = [];
+            v[0] = this.t_matrix._data[0][1];
+            v[1] = this.t_matrix._data[1][1];
+            return v;
+        }
+
+        Transform2D.prototype.inv_xAxis = function(){
+            var v = [];
+            v[0] = this.inv_matrix._data[0][1];
+            v[1] = this.inv_matrix._data[1][1];
+            return v;
+        }
+
+        Transform2D.prototype.inv_yAxis = function(){
+            var v = [];
+            v[0] = this.inv_matrix._data[0][1];
+            v[1] = this.inv_matrix._data[1][1];
+            return v;
+        }
+
+        Transform2D.prototype.t_origin = function(){
+            var v = [];
+            v[0] = this.t_matrix._data[0][2];
+            v[1] = this.t_matrix._data[1][2];
+            console.info("t_origin", v);
+            return v;
+        }
+
+        Transform2D.prototype.inv_origin = function(){
+            var v = [];
+            v[0] = this.inv_matrix._data[0][2];
+            v[1] = this.inv_matrix._data[1][2];
+            console.info("inv_origin", v);
+            return v;
+        }
+
+        Transform2D.prototype.t_norm = function(){
+            return [
+                math.norm(this.t_xAxis()),
+                math.norm(this.t_yAxis())
+            ];
+        }
+
+        Transform2D.prototype.inv_norm = function(){
+            return [
+                math.norm(this.inv_xAxis()),
+                math.norm(this.inv_yAxis())
+            ];
+        }
+
+        Transform2D.prototype.t_scale = function(){
+
+            return this.t_norm().map(norm => 1 / (norm / 1));
+        }
+
+        Transform2D.prototype.inv_scale = function(){
+            
+            return this.inv_norm().map(norm => 1 / (norm / 1));
+        }
+
+        Transform2D.prototype.t_radians = function(){
+            var x = this.t_xAxis();
+            var y = this.t_yAxis();
+            return [math.atan2(x[1],x[0]), math.atan2(y[1],y[0])];
+        }
+
+        Transform2D.prototype.inv_radians = function(){
+            var x = this.inv_xAxis();
+            var y = this.inv_yAxis();
+            return [math.atan2(x[1],x[0]), math.atan2(y[1],y[0])];
+        }
+
+        Transform2D.prototype.t_degrees = function(){
+            return this.t_radians().map(radians => { var degrees = radians / DEG_RAD_FACTOR; return degrees < 0 ? degrees + 360 : degrees; })
+        }
+
+        Transform2D.prototype.inv_degrees = function(){
+            return this.inv_radians().map(radians => { var degrees = radians / DEG_RAD_FACTOR; return degrees < 0 ? degrees + 360 : degrees; })
+        }
+
+        Transform2D.prototype.t_toSvgTransform = function(){
+            var m = T.t_matrix._data;                        
+
+            return `matrix(${m[0][0]} ${m[1][0]} ${m[0][1]} ${m[1][1]} ${m[0][2]} ${m[1][2]})`;
+        }
+
+        Transform2D.prototype.inv_toSvgTransform = function(){
+            var m = T.inv_matrix._data;                        
+
+            return `matrix(${m[0][0]} ${m[1][0]} ${m[0][1]} ${m[1][1]} ${m[0][2]} ${m[1][2]})`;
         }
 
         var width = 250;
@@ -377,10 +483,10 @@
         }
         drawPolygon.__count = 0;
 
-        function drawPoint(point, s){
+        function drawPoint(point, s, c){
             s = s || vis;
 
-            var c = s === vis ? "darkorange" : "dodgerblue";
+            c = c || (s === vis ? "darkorange" : "dodgerblue");
 
             s.append("circle")
                 .attr("cx", point[0])
@@ -451,6 +557,34 @@
             d3.select("textarea#wtm")
                 .style("font-size", "large")
                 .html(T.inv_matrix._data.map(e => e.map(v=> Math.floor(v * 100) / 100).join("    ")).join("\n"))
+
+            
+            var o = T.t_origin();
+            drawPoint(o, wrld, "tomato")
+
+            var xAxis = T.t_xAxis();
+            xAxis = [o[0] + (xAxis[0] * 30), o[1] + (xAxis[1] * 30)]
+            drawPoint(xAxis, wrld, "yellow")
+
+            var yAxis = T.t_yAxis();
+            yAxis = [o[0] + (yAxis[0] * 30), o[1] + (yAxis[1] * 30)]
+            drawPoint(yAxis, wrld, "green")
+
+            xAxis = T.t_xAxis();
+
+            d3.select("textarea#debug")
+                .style("font-size", "large")
+                .html(`axis: ${xAxis.map(pretty).join(", ")}\nnorm: ${pretty(T.t_norm()[0])}\nscale: ${pretty(T.t_scale()[0])}\nradians: ${pretty(T.t_radians()[0])}\ndegrees: ${pretty(T.t_degrees()[0])}`)
+
+            setVisTransform();
+
+        }
+
+        function setVisTransform(){
+            var m = T.inv_matrix._data;                        
+
+            vis.select("g.img-canvas")
+                .attr("transform", `matrix(${m[0][0]} ${m[1][0]} ${m[0][1]} ${m[1][1]} ${m[0][2]} ${m[1][2]})`)
         }
 
         function placeViewportBox(){
@@ -470,6 +604,10 @@
             debug()
         }
 
+        function pretty(v){
+            return Math.floor(v * 100) / 100;
+        }
+
 
         function main()
         {
@@ -478,8 +616,6 @@
         }
 
         main();
-
-
 
 
     </script>
