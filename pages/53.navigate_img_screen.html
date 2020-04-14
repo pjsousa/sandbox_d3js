@@ -581,10 +581,8 @@
         }
 
         function setVisTransform(){
-            var m = T.inv_matrix._data;                        
-
             vis.select("g.img-canvas")
-                .attr("transform", `matrix(${m[0][0]} ${m[1][0]} ${m[0][1]} ${m[1][1]} ${m[0][2]} ${m[1][2]})`)
+                .attr("transform", T.t_toSvgTransform());
         }
 
         function placeViewportBox(){
@@ -607,7 +605,6 @@
         function pretty(v){
             return Math.floor(v * 100) / 100;
         }
-
 
         function main()
         {

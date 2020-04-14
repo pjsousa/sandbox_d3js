@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body{
+            background-color: rgb(40,41,35);
+        }
+
+        svg{
+            border: 2px solid red;
+        }
+
+        .control-axis .tick {
+            stroke-opacity: 0.7;
+            shape-rendering: crispEdges;
+        }
+        .control-axis path {
+            stroke-width: 2px;
+        }
+
+        .grid .tick {
+            stroke-opacity: 0.7;
+            shape-rendering: crispEdges;
+        }
+
+        .grid .tick line{
+            stroke: white;
+            stroke-opacity: 0.1;
+            shape-rendering: crispEdges;
+        }
+
+        .grid path {
+            stroke-width: 0;
+        }
+
+        .plotArea path{
+            fill: none;
+            stroke-width: 2px;
+            stroke: rgb(166, 226, 44);
+        }
+    </style>
+</head>
+<body>
+    <p>
+        <button data-src="/dist/img/vertical.jpg">vertical</button>
+        <button data-src="/dist/img/horizontal.jpg">horizontal</button>
+        <button data-src="/dist/img/gray.png">big grid</button>
+        <button data-src="/dist/img/red.png">tiny grid 1</button>
+        <button data-src="/dist/img/green.png">tiny grid 2</button>
+    </p>
+
+    <svg class="vis">
+        <g class="img-canvas">
+            <g class="img-rotation">
+                <image />
+                <g class="points" transform="translate(0,0)">
+                </g>
+            </g>
+        </g>
+    </svg>
+
+    <p>
+        <span style="color: white">Translate x</span>
+        <input class="tr-x" type="range" min=-250 max=250 step="1" value=0>
+        <span class="tr-x" style="color: white">0</span>
+
+    </p>
+    <p>
+        <span style="color: white">Translate y</span>
+        <input class="tr-y" type="range" min=-250 max=250 step="1" value=0>
+        <span class="tr-y" style="color: white">0</span>
+    </p>
+    <p>
+        <span style="color: white">Angle</span>
+        <input class="angle" type="range" min=-360 max=360 step="5" value=0>
+        <span class="angle" style="color: white">0</span>
+    </p>
+    <p>
+        <span style="color: white">Scale</span>
+        <input class="scale" type="range" min=0 max=10 step="0.01" value=1>
+        <span class="scale" style="color: white">1</span>
+    </p>
+
+    <p class="transform-debug"></p>
+
+    <script src="/vendor/d3/d3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/6.6.1/math.min.js" integrity="sha256-GRICDUAZi4ixXD2USKabeCWS1tT0noAuMFauMmXEmHs=" crossorigin="anonymous"></script>
+    <script src="/dist/js/matrix.js"></script>
+    <script src="/dist/js/catmullrom.js"></script>
+
+    <script>
+
+        var DEG_RAD_FACTOR = math.pi / 180;
+        var TWO_PI = 2 * math.pi;
+
+        var width = 500;
+        var height = 500;
+        var imgX = null;
+        var imgY = null;
+        var T = null;
+        var imgBox = {w: null, h: null, ratio: null, x: null, y: null};
+        var scenePoints = [[125,125], [100,125], [150,125], 
+                      [125, 85], [125, 165]];
+
+        var vis = d3.select("svg.vis")
+                 .attr("width", width)
+                 .attr("height", height);
+        
+        function Hermite(points){
+            this.points = points;
+        }
+
+        function drawPolygon(points, s){
+            s = s || vis;
+
+            drawPolygon.__count += 1;
+
+            s.select("g.viewport-box polygon")
+                .attr("points",function(d) { 
+                    return points.map(function(d) {
+                        return [d[0],d[1]].join(",");
+                    }).join(" ");
+                })
+                .attr("fill", "rgba(0,255,0, 0.1)")
+                .attr("stroke", "rgb(80,200,120)")
+                .attr("stroke-width", "3px")
+
+            s.select("g.viewport-box text")
+                .attr("x", points[0][0])
+                .attr("y", points[0][1])
+                .attr("fill", "white")
+                .attr("text-anchor", "end")
+                .attr("font-size", "14px")
+                .attr("dy", "10px")
+                .attr("dx", "-2px")
+                .html(drawPolygon.__count)
+        }
+        drawPolygon.__count = 0;
+
+        function drawPoint(point, s, c, r){
+            s = s || vis;
+
+            c = c || (s === vis ? "darkorange" : "dodgerblue");
+
+            r = r || 3;
+
+            s.append("circle")
+                .attr("cx", point[0])
+                .attr("cy", point[1])
+                .attr("r", `${r}px`)
+                //.attr("stroke", c)
+                .attr("fill", c)
+                //.attr("stroke-width", 1);
+        }
+
+        function clearPoints(s){
+            s = s || vis;
+
+            s.selectAll("circle")
+                .remove()
+        }
+
+        function pretty(v){
+            return Math.floor(v * 100) / 100;
+        }
+
+        function main()
+        {
+            var points = [
+                [50, 50],
+                [100, 150],
+                [300, 300],
+                [400, 100.0],
+                [250, 100.0]
+            ]
+
+            let samplePositions = Array(5);
+            samplePositions[0] = ddengine.Matrix.from_vector(points[0]);
+            samplePositions[1] = ddengine.Matrix.from_vector(points[1]);
+            samplePositions[2] = ddengine.Matrix.from_vector(points[2]);
+            samplePositions[3] = ddengine.Matrix.from_vector(points[3]);
+            samplePositions[4] = ddengine.Matrix.from_vector(points[4]);
+
+            let sampleTimes = Array(4);
+            sampleTimes[0] = 0.0;
+            sampleTimes[1] = 1.0;
+            sampleTimes[2] = 2.0;
+            sampleTimes[3] = 3.0;
+            sampleTimes[4] = 4.0;
+
+            let mCurve = new ddengine.CatmullRom( samplePositions, sampleTimes, 5);
+
+            points.forEach(p => drawPoint(p, vis, "dodgerblue", 10));
+
+            let fn = (e => drawPoint(mCurve.evaluate(e).column(0), null, null, 3));
+
+            math.range(0,100)._data.map((r,i, arr) => fn((r/arr.length) * 9));
+        }
+
+        main();
+
+
+    </script>
+</body>
+</html>

@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <style>
+        body{
+            background-color: rgb(40,41,35);
+        }
+
+        svg{
+            border: 2px solid red;
+        }
+
+        .control-axis .tick {
+            stroke-opacity: 0.7;
+            shape-rendering: crispEdges;
+        }
+        .control-axis path {
+            stroke-width: 2px;
+        }
+
+        .grid .tick {
+            stroke-opacity: 0.7;
+            shape-rendering: crispEdges;
+        }
+
+        .grid .tick line{
+            stroke: white;
+            stroke-opacity: 0.1;
+            shape-rendering: crispEdges;
+        }
+
+        .grid path {
+            stroke-width: 0;
+        }
+
+        .plotArea path{
+            fill: none;
+            stroke-width: 2px;
+            stroke: rgb(166, 226, 44);
+        }
+    </style>
+</head>
+<body>
+    <p>
+        <button data-src="/dist/img/vertical.jpg">vertical</button>
+        <button data-src="/dist/img/horizontal.jpg">horizontal</button>
+        <button data-src="/dist/img/gray.png">big grid</button>
+        <button data-src="/dist/img/red.png">tiny grid 1</button>
+        <button data-src="/dist/img/green.png">tiny grid 2</button>
+    </p>
+
+    <svg class="vis">
+        <g class="img-canvas">
+            <g class="img-rotation">
+                <image />
+                <g class="points" transform="translate(0,0)">
+                </g>
+            </g>
+        </g>
+    </svg>
+
+    <p>
+        <span style="color: white">Translate x</span>
+        <input class="tr-x" type="range" min=-250 max=250 step="1" value=0>
+        <span class="tr-x" style="color: white">0</span>
+
+    </p>
+    <p>
+        <span style="color: white">Translate y</span>
+        <input class="tr-y" type="range" min=-250 max=250 step="1" value=0>
+        <span class="tr-y" style="color: white">0</span>
+    </p>
+    <p>
+        <span style="color: white">Angle</span>
+        <input class="angle" type="range" min=-360 max=360 step="5" value=0>
+        <span class="angle" style="color: white">0</span>
+    </p>
+    <p>
+        <span style="color: white">Scale</span>
+        <input class="scale" type="range" min=0 max=10 step="0.01" value=1>
+        <span class="scale" style="color: white">1</span>
+    </p>
+
+    <p class="transform-debug"></p>
+
+    <script src="/vendor/d3/d3.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mathjs/6.6.1/math.min.js" integrity="sha256-GRICDUAZi4ixXD2USKabeCWS1tT0noAuMFauMmXEmHs=" crossorigin="anonymous"></script>
+
+    <script>
+
+        var DEG_RAD_FACTOR = math.pi / 180;
+        var TWO_PI = 2 * math.pi;
+
+        var width = 500;
+        var height = 500;
+        var imgX = null;
+        var imgY = null;
+        var T = null;
+        var imgBox = {w: null, h: null, ratio: null, x: null, y: null};
+        var scenePoints = [[125,125], [100,125], [150,125], 
+                      [125, 85], [125, 165]];
+
+        var vis = d3.select("svg.vis")
+                 .attr("width", width)
+                 .attr("height", height);
+        
+        function Bezier(points){
+            this.points = points;
+        }
+
+        Bezier.prototype.interp_decasteljau = function(t){
+            var c = ["red", "yellow", "pink"]
+            var N = this.points.length;
+            var Px = this.points.map(e => e[0]);
+            var Py = this.points.map(e => e[1]);
+
+            for (j = N-1; j > 0; j--){
+                console.info(`j - ${j}`)
+                console.info(`Px = ${JSON.stringify(Px)}`);
+                console.info(`Py = ${JSON.stringify(Py)}`);
+                
+                for (i = 0; i < j; i++){
+                    Px[i] = (1-t)*Px[i] + t*Px[i+1];
+                    Py[i] = (1-t)*Py[i] + t*Py[i+1];
+                }
+
+                //Px.slice(0, N).forEach((p,i) => drawPoint([Px[i], Py[i]], vis, c[i]));
+            }
+
+            return [Px[0], Py[0]];
+        }
+
+        
+
+
+        function drawPolygon(points, s){
+            s = s || vis;
+
+            drawPolygon.__count += 1;
+
+            s.select("g.viewport-box polygon")
+                .attr("points",function(d) { 
+                    return points.map(function(d) {
+                        return [d[0],d[1]].join(",");
+                    }).join(" ");
+                })
+                .attr("fill", "rgba(0,255,0, 0.1)")
+                .attr("stroke", "rgb(80,200,120)")
+                .attr("stroke-width", "3px")
+
+            s.select("g.viewport-box text")
+                .attr("x", points[0][0])
+                .attr("y", points[0][1])
+                .attr("fill", "white")
+                .attr("text-anchor", "end")
+                .attr("font-size", "14px")
+                .attr("dy", "10px")
+                .attr("dx", "-2px")
+                .html(drawPolygon.__count)
+        }
+        drawPolygon.__count = 0;
+
+        function drawPoint(point, s, c){
+            s = s || vis;
+
+            c = c || (s === vis ? "darkorange" : "dodgerblue");
+
+            s.append("circle")
+                .attr("cx", point[0])
+                .attr("cy", point[1])
+                .attr("r", "3px")
+                .attr("stroke", "rgb(30,30,30)")
+                .attr("fill", c)
+                .attr("stroke-width", 1);
+        }
+
+        function clearPoints(s){
+            s = s || vis;
+
+            s.selectAll("circle")
+                .remove()
+        }
+
+        function pretty(v){
+            return Math.floor(v * 100) / 100;
+        }
+
+        
+
+        function main()
+        {
+            var c_points = [ [100,100], [100,300], [300,300], [100,250], [300,100], [300,450], [400,450] ];
+
+            c_points.forEach(p => drawPoint(p, vis, "dodgerblue"));
+
+            bz = new Bezier(c_points);
+            
+            math.range(0,100)._data.map((r,i, arr) => drawPoint(bz.interp_decasteljau(r/arr.length)));
+
+        }
+
+        main();
+
+
+    </script>
+</body>
+</html>
